@@ -1,0 +1,419 @@
+{
+  "users": [
+    {
+      "id": "usr_admin",
+      "username": "jpanadisi",
+      "password_hash": "$2b$10$LWvj6frCHwF7GYSnJKWAfeVUamnZMgNnGHcvG0xMOu/tzJkP8j0ya",
+      "name": "J. Panadisi",
+      "role": "admin",
+      "created_at": "2026-08-27T01:23:25.966Z"
+    }
+  ],
+  "services": [
+    {
+      "id": "srv_relajantes",
+      "name": "Relajantes",
+      "description": "Movimientos suaves y armonizadores con aceites esenciales para calmar el sistema nervioso, reducir el estrés y relajar todo el cuerpo.",
+      "duration": 60,
+      "price": 40000,
+      "active": true,
+      "category": "Relajación",
+      "icon": "Sparkles",
+      "order": 1
+    },
+    {
+      "id": "srv_drenaje",
+      "name": "Drenaje linfático",
+      "description": "Terapia manual suave y rítmica que estimula el sistema linfático para eliminar toxinas, reducir retención de líquidos e inflamación.",
+      "duration": 60,
+      "price": 40000,
+      "active": true,
+      "category": "Terapéutico",
+      "icon": "Droplets",
+      "order": 2
+    },
+    {
+      "id": "srv_reflexologia",
+      "name": "Reflexología",
+      "description": "Presión en puntos reflejos clave de los pies y manos que corresponden y equilibran los diferentes órganos y sistemas del cuerpo.",
+      "duration": 60,
+      "price": 40000,
+      "active": true,
+      "category": "Holístico",
+      "icon": "HeartPulse",
+      "order": 3
+    },
+    {
+      "id": "srv_reductores",
+      "name": "Reductores",
+      "description": "Masaje dinámico con maniobras intensas y modeladoras enfocado en disolver adiposidades localizadas, activar la circulación y tonificar.",
+      "duration": 60,
+      "price": 40000,
+      "active": true,
+      "category": "Modelador",
+      "icon": "Activity",
+      "order": 4
+    },
+    {
+      "id": "srv_ventosas",
+      "name": "Con ventosas",
+      "description": "Terapia de cupping / ventosas que genera vacío para descontracturar fibras profundas, liberar fascias y oxigenar los tejidos.",
+      "duration": 60,
+      "price": 40000,
+      "active": true,
+      "category": "Terapéutico",
+      "icon": "Flame",
+      "order": 5
+    },
+    {
+      "id": "srv_maderoterapia",
+      "name": "Maderoterapia",
+      "description": "Técnica holística y estética con piezas anatómicas de madera noble para drenar, reducir, moldear la figura y aliviar tensiones.",
+      "duration": 60,
+      "price": 40000,
+      "active": true,
+      "category": "Holístico",
+      "icon": "Smile",
+      "order": 6
+    }
+  ],
+  "schedule_config": {
+    "slot_interval": 15,
+    "buffer_between_slots": 15,
+    "min_advance_hours": 1,
+    "max_advance_days": 45,
+    "days": [
+      {
+        "day_of_week": 0,
+        "day_name": "Domingo",
+        "is_working": false,
+        "open_time": "10:00",
+        "close_time": "18:00",
+        "has_break": false,
+        "break_start": "13:00",
+        "break_end": "14:00"
+      },
+      {
+        "day_of_week": 1,
+        "day_name": "Lunes",
+        "is_working": true,
+        "open_time": "09:00",
+        "close_time": "20:00",
+        "has_break": true,
+        "break_start": "13:00",
+        "break_end": "14:00"
+      },
+      {
+        "day_of_week": 2,
+        "day_name": "Martes",
+        "is_working": true,
+        "open_time": "09:00",
+        "close_time": "20:00",
+        "has_break": true,
+        "break_start": "13:00",
+        "break_end": "14:00"
+      },
+      {
+        "day_of_week": 3,
+        "day_name": "Miércoles",
+        "is_working": true,
+        "open_time": "09:00",
+        "close_time": "20:00",
+        "has_break": true,
+        "break_start": "13:00",
+        "break_end": "14:00"
+      },
+      {
+        "day_of_week": 4,
+        "day_name": "Jueves",
+        "is_working": true,
+        "open_time": "09:00",
+        "close_time": "20:00",
+        "has_break": true,
+        "break_start": "13:00",
+        "break_end": "14:00"
+      },
+      {
+        "day_of_week": 5,
+        "day_name": "Viernes",
+        "is_working": true,
+        "open_time": "09:00",
+        "close_time": "20:00",
+        "has_break": true,
+        "break_start": "13:00",
+        "break_end": "14:00"
+      },
+      {
+        "day_of_week": 6,
+        "day_name": "Sábado",
+        "is_working": true,
+        "open_time": "09:30",
+        "close_time": "19:00",
+        "has_break": true,
+        "break_start": "13:30",
+        "break_end": "14:30"
+      }
+    ]
+  },
+  "blocked_dates": [],
+  "appointments": [],
+  "settings": {
+    "business_name": "ACE Masajes",
+    "tagline": "Alma, Cuerpo, Espiritu",
+    "business_phone": "+54 9 341 514-8958",
+    "business_address": "",
+    "whatsapp_enabled": true,
+    "whatsapp_provider": "direct",
+    "whatsapp_meta_token": "",
+    "whatsapp_meta_phone_number_id": "",
+    "whatsapp_twilio_account_sid": "",
+    "whatsapp_twilio_auth_token": "",
+    "whatsapp_twilio_from_number": "",
+    "whatsapp_webhook_url": "",
+    "template_confirmation": "¡Hola *{cliente}*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* {servicio}\n📅 *Fecha:* {fecha}\n⏰ *Hora:* {hora} hs\n📝 *Tus datos:* {direccion} | 📞 {telefono}\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+    "template_reminder": "🔔 *Recordatorio de Turno - ACE Masajes*\n\n¡Hola *{cliente}*! Te recordamos que en *30 minutos* ({hora} hs) comienza tu sesión de *{servicio}*.\n\n¡Nos vemos pronto para cuidar tu Alma, Cuerpo y Espíritu! ✨",
+    "template_cancellation": "Hola *{cliente}*, te informamos que tu turno para *{servicio}* del día *{fecha}* a las *{hora} hs* ha sido cancelado. Si deseas reprogramar, ingresa a nuestra web o comunícate con nosotros."
+  },
+  "notification_logs": [
+    {
+      "id": "log_1787794058354_zo0s",
+      "appointment_id": "test_123",
+      "type": "confirmation",
+      "recipient_phone": "+5491155551234",
+      "recipient_name": "María Gómez",
+      "message": "¡Hola *María Gómez*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Masaje Descontracturante\n📅 *Fecha:* jueves, 27 de agosto de 2026\n⏰ *Hora:* 16:00 hs\n📍 *Ubicación:* Espacio Holístico ACE, Av. Bienestar 742, CABA\n\n📝 *Tus datos:* Av. Corrientes 1500, 3A | 📞 +5491155551234\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T01:27:38.354Z"
+    },
+    {
+      "id": "log_1787794070468_jkgl",
+      "appointment_id": "test_123",
+      "type": "confirmation",
+      "recipient_phone": "+5491155551234",
+      "recipient_name": "María Gómez",
+      "message": "¡Hola *María Gómez*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Masaje Descontracturante\n📅 *Fecha:* jueves, 27 de agosto de 2026\n⏰ *Hora:* 16:00 hs\n📍 *Ubicación:* Espacio Holístico ACE, Av. Bienestar 742, CABA\n\n📝 *Tus datos:* Av. Corrientes 1500, 3A | 📞 +5491155551234\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T01:27:50.468Z"
+    },
+    {
+      "id": "log_1787794070469_5dfo",
+      "appointment_id": "turn_1787794070469_ihv3p",
+      "type": "reminder_30m",
+      "recipient_phone": "+5491144445555",
+      "recipient_name": "Cliente Prueba Recordatorio",
+      "message": "🔔 *Recordatorio de Turno - ACE Masajes*\n\n¡Hola *Cliente Prueba Recordatorio*! Te recordamos que en *30 minutos* (22:55 hs) comienza tu sesión de *Masaje Descontracturante*.\n\n📍 *Dirección:* Espacio Holístico ACE, Av. Bienestar 742, CABA\n\n¡Nos vemos pronto para cuidar tu Alma, Cuerpo y Espíritu! ✨",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T01:27:50.469Z"
+    },
+    {
+      "id": "log_1787794100965_lqi7",
+      "appointment_id": "turn_1787794100952_fabq4",
+      "type": "confirmation",
+      "recipient_phone": "+5491155559988",
+      "recipient_name": "Camila Rossi",
+      "message": "¡Hola *Camila Rossi*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Masaje Descontracturante\n📅 *Fecha:* viernes, 28 de agosto de 2026\n⏰ *Hora:* 11:00 hs\n📍 *Ubicación:* Espacio Holístico ACE, Av. Bienestar 742, CABA\n\n📝 *Tus datos:* Av. Las Heras 2140 | 📞 11 5555 9988\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T01:28:20.965Z"
+    },
+    {
+      "id": "log_1787794203473_5gvx",
+      "appointment_id": "turn_1787794203472_5cg3o",
+      "type": "confirmation",
+      "recipient_phone": "+5493416749377",
+      "recipient_name": "Tito y pelusa",
+      "message": "¡Hola *Tito y pelusa*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Masaje Descontracturante\n📅 *Fecha:* jueves, 27 de agosto de 2026\n⏰ *Hora:* 16:00 hs\n📍 *Ubicación:* Espacio Holístico ACE, Av. Bienestar 742, CABA\n\n📝 *Tus datos:* Callao 1255 | 📞 03416749377\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T01:30:03.473Z"
+    },
+    {
+      "id": "log_1787794320632_jff4",
+      "appointment_id": "turn_1787794320631_9u1cc",
+      "type": "confirmation",
+      "recipient_phone": "+5493416749377",
+      "recipient_name": "Tito y pelusa",
+      "message": "¡Hola *Tito y pelusa*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Masaje Descontracturante\n📅 *Fecha:* jueves, 27 de agosto de 2026\n⏰ *Hora:* 09:00 hs\n📍 *Ubicación:* Espacio Holístico ACE, Av. Bienestar 742, CABA\n\n📝 *Tus datos:* Callao 1255 | 📞 03416749377\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T01:32:00.632Z"
+    },
+    {
+      "id": "log_1787794445135_vl0w",
+      "appointment_id": "test_demo",
+      "type": "custom",
+      "recipient_phone": "+5493416749377",
+      "recipient_name": "Cliente de Prueba",
+      "message": "🌿 *ACE Masajes (Alma, Cuerpo, Espíritu)*: Este es un mensaje de prueba del sistema de turnos.",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T01:34:05.135Z"
+    },
+    {
+      "id": "log_1787794719448_0z2f",
+      "appointment_id": "turn_1787794719447_tjrc9",
+      "type": "confirmation",
+      "recipient_phone": "+54934160303456",
+      "recipient_name": "Tito y pelusa",
+      "message": "¡Hola *Tito y pelusa*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Reflexología Podal\n📅 *Fecha:* jueves, 27 de agosto de 2026\n⏰ *Hora:* 10:00 hs\n📍 *Ubicación:* Espacio Holístico ACE, Av. Bienestar 742, CABA\n\n📝 *Tus datos:* Callao 1255 | 📞 34160303456\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T01:38:39.448Z"
+    },
+    {
+      "id": "log_1787796285723_fzta",
+      "appointment_id": "turn_1787796285711_7lvzo",
+      "type": "confirmation",
+      "recipient_phone": "+5491144448888",
+      "recipient_name": "Ana Belén Martínez",
+      "message": "¡Hola *Ana Belén Martínez*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Relajantes\n📅 *Fecha:* martes, 1 de septiembre de 2026\n⏰ *Hora:* 15:00 hs\n📍 *Ubicación:* Espacio Holístico ACE, Av. Bienestar 742, CABA\n\n📝 *Tus datos:* Av. Libertador 4500 | 📞 11 4444 8888\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T02:04:45.723Z"
+    },
+    {
+      "id": "log_1787796939480_sgai",
+      "appointment_id": "turn_1787796939467_06ozz",
+      "type": "confirmation",
+      "recipient_phone": "+5493416749377",
+      "recipient_name": "Tito y pelusa",
+      "message": "¡Hola *Tito y pelusa*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Con ventosas\n📅 *Fecha:* jueves, 27 de agosto de 2026\n⏰ *Hora:* 15:00 hs\n📝 *Tus datos:* Callao 1255 | 📞 3416749377\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T02:15:39.480Z"
+    },
+    {
+      "id": "log_1787798501874_24z3",
+      "appointment_id": "turn_1787798501861_vn9hk",
+      "type": "confirmation",
+      "recipient_phone": "+5493415551234",
+      "recipient_name": "Camila Rodríguez",
+      "message": "¡Hola *Camila Rodríguez*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Relajantes\n📅 *Fecha:* viernes, 28 de agosto de 2026\n⏰ *Hora:* 11:00 hs\n📝 *Tus datos:* Rioja 1200, Rosario | 📞 341 555 1234\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T02:41:41.874Z"
+    },
+    {
+      "id": "log_1787798603790_xfa7",
+      "appointment_id": "turn_1787798603789_y6zwt",
+      "type": "confirmation",
+      "recipient_phone": "+5493416749377",
+      "recipient_name": "Lalala",
+      "message": "¡Hola *Lalala*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Relajantes\n📅 *Fecha:* viernes, 28 de agosto de 2026\n⏰ *Hora:* 09:00 hs\n📝 *Tus datos:* Callao 1255 | 📞 03416749377\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T02:43:23.790Z"
+    },
+    {
+      "id": "log_1787798679421_cf3m",
+      "appointment_id": "turn_1787798603789_y6zwt",
+      "type": "confirmation",
+      "recipient_phone": "+5493416749377",
+      "recipient_name": "Lalala",
+      "message": "¡Hola *Lalala*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Relajantes\n📅 *Fecha:* viernes, 28 de agosto de 2026\n⏰ *Hora:* 09:00 hs\n📝 *Tus datos:* Callao 1255 | 📞 03416749377\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T02:44:39.422Z"
+    },
+    {
+      "id": "log_1787798682377_gmc4",
+      "appointment_id": "turn_1787798603789_y6zwt",
+      "type": "confirmation",
+      "recipient_phone": "+5493416749377",
+      "recipient_name": "Lalala",
+      "message": "¡Hola *Lalala*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Relajantes\n📅 *Fecha:* viernes, 28 de agosto de 2026\n⏰ *Hora:* 09:00 hs\n📝 *Tus datos:* Callao 1255 | 📞 03416749377\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T02:44:42.377Z"
+    },
+    {
+      "id": "log_1787798682960_4zrj",
+      "appointment_id": "turn_1787798603789_y6zwt",
+      "type": "confirmation",
+      "recipient_phone": "+5493416749377",
+      "recipient_name": "Lalala",
+      "message": "¡Hola *Lalala*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Relajantes\n📅 *Fecha:* viernes, 28 de agosto de 2026\n⏰ *Hora:* 09:00 hs\n📝 *Tus datos:* Callao 1255 | 📞 03416749377\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T02:44:42.960Z"
+    },
+    {
+      "id": "log_1787798685554_ghmo",
+      "appointment_id": "turn_1787798603789_y6zwt",
+      "type": "confirmation",
+      "recipient_phone": "+5493416749377",
+      "recipient_name": "Lalala",
+      "message": "¡Hola *Lalala*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Relajantes\n📅 *Fecha:* viernes, 28 de agosto de 2026\n⏰ *Hora:* 09:00 hs\n📝 *Tus datos:* Callao 1255 | 📞 03416749377\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T02:44:45.554Z"
+    },
+    {
+      "id": "log_1787798687129_lra4",
+      "appointment_id": "turn_1787798603789_y6zwt",
+      "type": "reminder_30m",
+      "recipient_phone": "+5493416749377",
+      "recipient_name": "Lalala",
+      "message": "🔔 *Recordatorio de Turno - ACE Masajes*\n\n¡Hola *Lalala*! Te recordamos que en *30 minutos* (09:00 hs) comienza tu sesión de *Relajantes*.\n\n¡Nos vemos pronto para cuidar tu Alma, Cuerpo y Espíritu! ✨",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T02:44:47.129Z"
+    },
+    {
+      "id": "log_1787798687725_868m",
+      "appointment_id": "turn_1787798603789_y6zwt",
+      "type": "confirmation",
+      "recipient_phone": "+5493416749377",
+      "recipient_name": "Lalala",
+      "message": "¡Hola *Lalala*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Relajantes\n📅 *Fecha:* viernes, 28 de agosto de 2026\n⏰ *Hora:* 09:00 hs\n📝 *Tus datos:* Callao 1255 | 📞 03416749377\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T02:44:47.725Z"
+    },
+    {
+      "id": "log_1787798699084_o6l5",
+      "appointment_id": "turn_1787798603789_y6zwt",
+      "type": "confirmation",
+      "recipient_phone": "+5493416749377",
+      "recipient_name": "Lalala",
+      "message": "¡Hola *Lalala*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Relajantes\n📅 *Fecha:* viernes, 28 de agosto de 2026\n⏰ *Hora:* 09:00 hs\n📝 *Tus datos:* Callao 1255 | 📞 03416749377\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T02:44:59.084Z"
+    },
+    {
+      "id": "log_1787798706559_g36c",
+      "appointment_id": "turn_1787798603789_y6zwt",
+      "type": "reminder_30m",
+      "recipient_phone": "+5493416749377",
+      "recipient_name": "Lalala",
+      "message": "🔔 *Recordatorio de Turno - ACE Masajes*\n\n¡Hola *Lalala*! Te recordamos que en *30 minutos* (09:00 hs) comienza tu sesión de *Relajantes*.\n\n¡Nos vemos pronto para cuidar tu Alma, Cuerpo y Espíritu! ✨",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-27T02:45:06.559Z"
+    }
+  ]
+}

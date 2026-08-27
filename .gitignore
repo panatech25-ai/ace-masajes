@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+*/node_modules/
+client/node_modules/
+server/node_modules/
+
+# Production builds
+dist/
+client/dist/
+build/
+
+# Environment variables & local secrets
+.env
+.env.local
+.env.*.local
+
+# Database local storage (keep template/seed, ignore runtime test dumps)
+server/data/*.tmp
+*.tmp
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
