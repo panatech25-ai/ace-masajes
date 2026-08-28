@@ -184,13 +184,13 @@ export default function DepositPaymentStep({
           </div>
 
           {/* WhatsApp Voucher Instructions */}
-          <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-xs sm:text-sm text-emerald-950 space-y-2">
-            <div className="flex items-center gap-2 font-bold text-emerald-900">
-              <MessageCircle className="w-4.5 h-4.5 text-emerald-600 shrink-0" />
+          <div className="p-4 rounded-2xl bg-spa-50/80 border border-spa-200/80 text-xs sm:text-sm text-spa-950 space-y-2">
+            <div className="flex items-center gap-2 font-bold text-spa-900">
+              <Sparkles className="w-4.5 h-4.5 text-spa-700 shrink-0" />
               <span>Envío del Comprobante</span>
             </div>
             <p className="text-stone-700 leading-relaxed">
-              Una vez realizada la transferencia, haz clic en el botón de abajo para <strong>confirmar tu turno y enviar el comprobante directamente al WhatsApp</strong> de ACE Masajes (+54 9 341 514-8958).
+              Al confirmar tu reserva, por favor envía el comprobante de la transferencia al WhatsApp oficial de ACE Masajes: <strong className="text-spa-950 font-bold">+54 9 341 514-8958</strong>.
             </p>
           </div>
 
@@ -210,17 +210,17 @@ export default function DepositPaymentStep({
               type="button"
               onClick={onConfirm}
               disabled={loading}
-              className="px-6 sm:px-8 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-lg shadow-emerald-600/20 text-sm font-bold transition-all flex items-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 sm:px-8 py-3.5 rounded-2xl bg-spa-800 hover:bg-spa-900 active:scale-95 text-white shadow-lg shadow-spa-900/20 text-sm font-bold transition-all flex items-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Confirmando...
+                  Registrando Turno...
                 </>
               ) : (
                 <>
-                  <MessageCircle className="w-5 h-5 fill-current" />
-                  Confirmar Turno y Enviar Comprobante
+                  <ShieldCheck className="w-5 h-5" />
+                  Confirmar Reserva de Turno
                 </>
               )}
             </button>

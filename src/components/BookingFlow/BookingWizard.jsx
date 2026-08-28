@@ -179,29 +179,7 @@ export default function BookingWizard() {
 
       const result = await api.createAppointment(payload);
 
-      // Construct voucher message for WhatsApp
-      const voucherMsg = `¡Hola Jesica! 🌿 Acabo de reservar mi turno en *ACE Masajes (Alma, Cuerpo, Espíritu)*:
-
-💆 *Servicio:* ${selectedService.name}
-📅 *Fecha:* ${friendlyDate}
-⏰ *Hora:* ${selectedTime} hs
-👤 *Nombre:* ${formData.client_name}
-📍 *Dirección:* ${formData.client_address}
-
-Adjunto aquí mi comprobante de transferencia de la seña ($10.000) a la cuenta de Reba para asegurar mi lugar. ¡Muchas gracias!`;
-
-      const directVoucherLink = `https://wa.me/5493415148958?text=${encodeURIComponent(voucherMsg)}`;
-
-      // Open WhatsApp automatically in a new tab for seamless user experience
-      window.open(directVoucherLink, '_blank');
-
-      setBookingResult({
-        ...result,
-        whatsapp: {
-          ...result.whatsapp,
-          directLink: directVoucherLink
-        }
-      });
+      setBookingResult(result);
     } catch (err) {
       setErrorMessage(err.message || 'Ocurrió un error al registrar el turno. Por favor intente nuevamente.');
     } finally {

@@ -237,7 +237,12 @@ export const db = {
   },
   getServiceById: (id) => {
     const data = loadDatabase();
-    return data.services.find((s) => s.id === id);
+    return (
+      data.services.find((s) => s.id === id) ||
+      data.services.find((s) => s.name?.toLowerCase() === id?.toLowerCase()) ||
+      defaultInitialData.services.find((s) => s.id === id) ||
+      defaultInitialData.services[0]
+    );
   },
   createService: (service) => {
     const data = loadDatabase();

@@ -156,7 +156,33 @@
     ]
   },
   "blocked_dates": [],
-  "appointments": [],
+  "appointments": [
+    {
+      "id": "turn_1787882986194_1krre",
+      "series_id": null,
+      "recurrence_type": null,
+      "recurrence_index": 1,
+      "recurrence_total": 1,
+      "recurrence_rule": null,
+      "service_id": "srv_relajantes",
+      "service_name": "Relajantes",
+      "service_duration": 60,
+      "service_price": 40000,
+      "client_name": "María García",
+      "client_address": "Córdoba 1500",
+      "client_phone": "341 512 3456",
+      "client_notes": "Sesión de prueba",
+      "date": "2026-08-28",
+      "time": "14:00",
+      "end_time": "15:00",
+      "status": "confirmed",
+      "reminder_sent": 0,
+      "confirmation_sent": 1,
+      "source": "web",
+      "created_at": "2026-08-28T02:09:46.194Z",
+      "updated_at": "2026-08-28T02:09:46.206Z"
+    }
+  ],
   "settings": {
     "business_name": "ACE Masajes",
     "tagline": "Alma, Cuerpo, Espiritu",
@@ -175,6 +201,18 @@
     "template_cancellation": "Hola *{cliente}*, te informamos que tu turno para *{servicio}* del día *{fecha}* a las *{hora} hs* ha sido cancelado. Si deseas reprogramar, ingresa a nuestra web o comunícate con nosotros."
   },
   "notification_logs": [
+    {
+      "id": "log_1787882986205_l6ic",
+      "appointment_id": "turn_1787882986194_1krre",
+      "type": "confirmation",
+      "recipient_phone": "+5493415123456",
+      "recipient_name": "María García",
+      "message": "¡Hola *María García*! 🌿 Tu turno en *ACE Masajes (Alma, Cuerpo, Espíritu)* ha sido confirmado con éxito.\n\n💆 *Servicio:* Relajantes\n📅 *Fecha:* viernes, 28 de agosto de 2026\n⏰ *Hora:* 14:00 hs\n📝 *Tus datos:* Córdoba 1500 | 📞 341 512 3456\n\n_Por favor presentarse 5 minutos antes. ¡Te esperamos para renovar tu energía!_",
+      "status": "ready_direct",
+      "provider": "direct_link",
+      "error": null,
+      "created_at": "2026-08-28T02:09:46.205Z"
+    },
     {
       "id": "log_1787794058354_zo0s",
       "appointment_id": "test_123",
