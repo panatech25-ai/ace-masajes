@@ -174,7 +174,7 @@ function loadDatabase() {
       dbData = {
         ...defaultInitialData,
         ...parsed,
-        users: parsed.users || defaultInitialData.users,
+        users: (parsed.users && parsed.users.length > 0) ? parsed.users : defaultInitialData.users,
         services: (parsed.services && parsed.services.length > 0) ? parsed.services : defaultInitialData.services,
         schedule_config: parsed.schedule_config || defaultInitialData.schedule_config,
         blocked_dates: parsed.blocked_dates || [],
@@ -202,77 +202,60 @@ function saveDatabase() {
   }
 }
 
-// Database helper functions
+// Database helper functions - ALWAYS synchronous for internal safety, with Supabase async background sync
 export const db = {
   get: () => loadDatabase(),
   save: () => saveDatabase(),
 
   // Users
-  getUserByUsername: async (username) => {
+  getUserByUsername: (username) => {
     const data = loadDatabase();
-    if (supabase) {
-      try {
-        const { data: dbUser, error } = await supabase.from('users').select('*').ilike('username', username).single();
-        if (!error && dbUser) return dbUser;
-      } catch (e) {}
-    }
-    return data.users.find((u) => u.username.toLowerCase() === username.toLowerCase());
+    return data.users.find((u) => u.username.toLowerCase() === (username || '').toLowerCase());
   },
-  getUserById: async (id) => {
+  getUserById: (id) => {
     const data = loadDatabase();
-    if (supabase) {
-      try {
-        const { data: dbUser, error } = await supabase.from('users').select('*').eq('id', id).single();
-        if (!error && dbUser) return dbUser;
-      } catch (e) {}
-    }
     return data.users.find((u) => u.id === id);
   },
-  updateUserPassword: async (id, newHash) => {
+  updateUserPassword: (id, newHash) => {
     const data = loadDatabase();
     const user = data.users.find((u) => u.id === id);
     if (user) {
       user.password_hash = newHash;
       saveDatabase();
+      if (supabase) {
+        supabase.from('users').update({ password_hash: newHash }).eq('id', id).catch(console.error);
+      }
+      return true;
     }
-    if (supabase) {
-      try {
-        await supabase.from('users').update({ password_hash: newHash }).eq('id', id);
-      } catch (e) {}
-    }
-    return true;
+    return false;
   },
 
   // Services
-  getServices: async (activeOnly = false) => {
+  getServices: (activeOnly = false) => {
     const data = loadDatabase();
-    if (supabase) {
-      try {
-        let q = supabase.from('services').select('*').order('order', { ascending: true });
-        if (activeOnly) q = q.eq('active', true);
-        const { data: dbServices, error } = await q;
-        if (!error && Array.isArray(dbServices) && dbServices.length > 0) {
-          data.services = dbServices;
-          saveDatabase();
-          return dbServices;
-        }
-      } catch (e) {}
-    }
+    const list = Array.isArray(data.services) && data.services.length > 0
+      ? data.services
+      : defaultInitialData.services;
+
     if (activeOnly) {
-      return data.services.filter((s) => s.active);
+      return list.filter((s) => s.active);
     }
-    return data.services;
+    return list;
   },
   getServiceById: (id) => {
     const data = loadDatabase();
+    const list = Array.isArray(data.services) && data.services.length > 0
+      ? data.services
+      : defaultInitialData.services;
+
     return (
-      data.services.find((s) => s.id === id) ||
-      data.services.find((s) => s.name?.toLowerCase() === id?.toLowerCase()) ||
+      list.find((s) => s.id === id) ||
+      list.find((s) => s.name?.toLowerCase() === id?.toLowerCase()) ||
       defaultInitialData.services.find((s) => s.id === id) ||
       defaultInitialData.services[0]
     );
   },
-  createService: async (service) => {
+  createService: (service) => {
     const data = loadDatabase();
     const newService = {
       id: `srv_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
@@ -288,13 +271,11 @@ export const db = {
     data.services.push(newService);
     saveDatabase();
     if (supabase) {
-      try {
-        await supabase.from('services').insert(newService);
-      } catch (e) {}
+      supabase.from('services').insert(newService).catch(console.error);
     }
     return newService;
   },
-  updateService: async (id, updates) => {
+  updateService: (id, updates) => {
     const data = loadDatabase();
     const index = data.services.findIndex((s) => s.id === id);
     if (index !== -1) {
@@ -306,24 +287,20 @@ export const db = {
       };
       saveDatabase();
       if (supabase) {
-        try {
-          await supabase.from('services').update(updates).eq('id', id);
-        } catch (e) {}
+        supabase.from('services').update(updates).eq('id', id).catch(console.error);
       }
       return data.services[index];
     }
     return null;
   },
-  deleteService: async (id) => {
+  deleteService: (id) => {
     const data = loadDatabase();
     const initialLen = data.services.length;
     data.services = data.services.filter((s) => s.id !== id);
     if (data.services.length !== initialLen) {
       saveDatabase();
       if (supabase) {
-        try {
-          await supabase.from('services').delete().eq('id', id);
-        } catch (e) {}
+        supabase.from('services').delete().eq('id', id).catch(console.error);
       }
       return true;
     }
@@ -375,7 +352,7 @@ export const db = {
         }
         if (filter.status) query = query.eq('status', filter.status);
         const { data: dbRows, error } = await query;
-        if (!error && Array.isArray(dbRows)) {
+        if (!error && Array.isArray(dbRows) && dbRows.length > 0) {
           list = dbRows;
           const data = loadDatabase();
           data.appointments = dbRows;
@@ -401,7 +378,7 @@ export const db = {
     return (data.appointments || []).find((a) => a.id === id);
   },
 
-  createAppointment: async (appointment) => {
+  createAppointment: (appointment) => {
     const data = loadDatabase();
     if (!data.appointments) data.appointments = [];
 
@@ -435,17 +412,14 @@ export const db = {
     saveDatabase();
 
     if (supabase) {
-      try {
-        const { error } = await supabase.from('appointments').insert(newAppointment);
+      supabase.from('appointments').insert(newAppointment).then(({ error }) => {
         if (error) console.error('Supabase error inserting appointment:', error);
-      } catch (err) {
-        console.error('Supabase insert appointment exception:', err);
-      }
+      }).catch(console.error);
     }
     return newAppointment;
   },
 
-  updateAppointment: async (id, updates) => {
+  updateAppointment: (id, updates) => {
     const data = loadDatabase();
     if (!data.appointments) data.appointments = [];
     const index = data.appointments.findIndex((a) => a.id === id);
@@ -457,16 +431,14 @@ export const db = {
       };
       saveDatabase();
       if (supabase) {
-        try {
-          await supabase.from('appointments').update(updates).eq('id', id);
-        } catch (e) {}
+        supabase.from('appointments').update(updates).eq('id', id).catch(console.error);
       }
       return data.appointments[index];
     }
     return null;
   },
 
-  deleteAppointment: async (id) => {
+  deleteAppointment: (id) => {
     const data = loadDatabase();
     if (!data.appointments) return false;
     const initialLen = data.appointments.length;
@@ -474,16 +446,14 @@ export const db = {
     if (data.appointments.length !== initialLen) {
       saveDatabase();
       if (supabase) {
-        try {
-          await supabase.from('appointments').delete().eq('id', id);
-        } catch (e) {}
+        supabase.from('appointments').delete().eq('id', id).catch(console.error);
       }
       return true;
     }
     return false;
   },
 
-  deleteAppointmentSeries: async (seriesId) => {
+  deleteAppointmentSeries: (seriesId) => {
     const data = loadDatabase();
     if (!data.appointments) return false;
     const initialLen = data.appointments.length;
@@ -491,9 +461,7 @@ export const db = {
     if (data.appointments.length !== initialLen) {
       saveDatabase();
       if (supabase) {
-        try {
-          await supabase.from('appointments').delete().eq('series_id', seriesId);
-        } catch (e) {}
+        supabase.from('appointments').delete().eq('series_id', seriesId).catch(console.error);
       }
       return true;
     }
@@ -505,7 +473,7 @@ export const db = {
     const data = loadDatabase();
     return data.schedule_config || defaultInitialData.schedule_config;
   },
-  updateScheduleConfig: async (newConfig) => {
+  updateScheduleConfig: (newConfig) => {
     const data = loadDatabase();
     data.schedule_config = {
       ...(data.schedule_config || defaultInitialData.schedule_config),
@@ -513,9 +481,7 @@ export const db = {
     };
     saveDatabase();
     if (supabase) {
-      try {
-        await supabase.from('schedule_config').upsert({ id: 1, ...data.schedule_config });
-      } catch (e) {}
+      supabase.from('schedule_config').upsert({ id: 1, ...data.schedule_config }).catch(console.error);
     }
     return data.schedule_config;
   },
@@ -525,7 +491,7 @@ export const db = {
     const data = loadDatabase();
     return data.blocked_dates || [];
   },
-  addBlockedDate: async (blocked) => {
+  addBlockedDate: (blocked) => {
     const data = loadDatabase();
     const newBlocked = {
       id: `blk_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
@@ -540,13 +506,11 @@ export const db = {
     data.blocked_dates.push(newBlocked);
     saveDatabase();
     if (supabase) {
-      try {
-        await supabase.from('blocked_dates').insert(newBlocked);
-      } catch (e) {}
+      supabase.from('blocked_dates').insert(newBlocked).catch(console.error);
     }
     return newBlocked;
   },
-  deleteBlockedDate: async (id) => {
+  deleteBlockedDate: (id) => {
     const data = loadDatabase();
     if (!data.blocked_dates) return false;
     const initialLen = data.blocked_dates.length;
@@ -554,9 +518,7 @@ export const db = {
     if (data.blocked_dates.length !== initialLen) {
       saveDatabase();
       if (supabase) {
-        try {
-          await supabase.from('blocked_dates').delete().eq('id', id);
-        } catch (e) {}
+        supabase.from('blocked_dates').delete().eq('id', id).catch(console.error);
       }
       return true;
     }
@@ -568,7 +530,7 @@ export const db = {
     const data = loadDatabase();
     return data.settings || defaultInitialData.settings;
   },
-  updateSettings: async (newSettings) => {
+  updateSettings: (newSettings) => {
     const data = loadDatabase();
     data.settings = {
       ...(data.settings || defaultInitialData.settings),
@@ -576,15 +538,13 @@ export const db = {
     };
     saveDatabase();
     if (supabase) {
-      try {
-        await supabase.from('settings').upsert({ id: 1, ...data.settings });
-      } catch (e) {}
+      supabase.from('settings').upsert({ id: 1, ...data.settings }).catch(console.error);
     }
     return data.settings;
   },
 
   // Notification Logs
-  addNotificationLog: async (log) => {
+  addNotificationLog: (log) => {
     const data = loadDatabase();
     const newLog = {
       id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
@@ -605,9 +565,7 @@ export const db = {
     }
     saveDatabase();
     if (supabase) {
-      try {
-        await supabase.from('notification_logs').insert(newLog);
-      } catch (e) {}
+      supabase.from('notification_logs').insert(newLog).catch(console.error);
     }
     return newLog;
   },
