@@ -572,5 +572,33 @@ export const db = {
   getNotificationLogs: (limit = 100) => {
     const data = loadDatabase();
     return (data.notification_logs || []).slice(0, limit);
+  },
+
+  // Clients
+  getClients: () => {
+    const data = loadDatabase();
+    const map = new Map();
+    for (const app of data.appointments || []) {
+      const phone = (app.client_phone || '').trim();
+      if (!phone) continue;
+      if (!map.has(phone)) {
+        map.set(phone, {
+          phone,
+          name: app.client_name || 'Cliente',
+          address: app.client_address || '',
+          total_appointments: 1,
+          last_appointment: app.date,
+          history: [app]
+        });
+      } else {
+        const client = map.get(phone);
+        client.total_appointments += 1;
+        if (app.date > client.last_appointment) {
+          client.last_appointment = app.date;
+        }
+        client.history.push(app);
+      }
+    }
+    return Array.from(map.values());
   }
 };

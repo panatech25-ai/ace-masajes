@@ -38,21 +38,31 @@ export default function AdminLayout({ user, onLogout, onNavigateToBooking }) {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const [apps, srvs, st, cls] = await Promise.all([
+      const [appsRes, srvsRes, stRes, clsRes] = await Promise.allSettled([
         api.getAdminAppointments(),
         api.getServices(true), // all services
         api.getAdminStats(),
         api.getClients()
       ]);
-      setAppointments(apps);
-      setServices(srvs);
-      setStats(st);
-      setClients(cls);
-    } catch (err) {
-      console.error('Error loading admin data:', err);
-      if (err.status === 401) {
+
+      if (appsRes.status === 'fulfilled' && Array.isArray(appsRes.value)) {
+        setAppointments(appsRes.value);
+      }
+      if (srvsRes.status === 'fulfilled' && Array.isArray(srvsRes.value)) {
+        setServices(srvsRes.value);
+      }
+      if (stRes.status === 'fulfilled' && stRes.value) {
+        setStats(stRes.value);
+      }
+      if (clsRes.status === 'fulfilled' && Array.isArray(clsRes.value)) {
+        setClients(clsRes.value);
+      }
+
+      if (appsRes.status === 'rejected' && appsRes.reason?.status === 401) {
         onLogout();
       }
+    } catch (err) {
+      console.error('Error loading admin data:', err);
     } finally {
       setLoading(false);
     }
