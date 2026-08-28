@@ -522,7 +522,10 @@ router.get('/:id', (req, res) => {
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const existing = db.getAppointmentById(id);
+    let existing = await db.getAppointmentByIdAsync(id);
+    if (!existing) {
+      existing = db.getAppointmentById(id);
+    }
     if (!existing) {
       return res.status(404).json({ error: 'Turno no encontrado.' });
     }
@@ -544,37 +547,38 @@ router.put('/:id', authMiddleware, async (req, res) => {
       updates.end_time = addMinutesToTime(updates.time, existing.service_duration || 60);
     }
 
-    const updated = db.updateAppointment(id, updates);
+    const updated = await db.updateAppointmentAsync(id, updates);
     res.json(updated);
   } catch (err) {
     console.error('Error updating appointment:', err);
-    res.status(500).json({ error: 'Error al actualizar el turno.' });
+    res.status(500).json({ error: err.message || 'Error al actualizar el turno.' });
   }
 });
 
 // DELETE /api/appointments/:id (Admin: delete appointment or entire series)
-router.delete('/:id', authMiddleware, (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { delete_series } = req.query;
 
-    const appointment = db.getAppointmentById(id);
+    let appointment = await db.getAppointmentByIdAsync(id);
+    if (!appointment) {
+      appointment = db.getAppointmentById(id);
+    }
     if (!appointment) {
       return res.status(404).json({ error: 'Turno no encontrado.' });
     }
 
     if (delete_series === 'true' && appointment.series_id) {
-      db.deleteAppointmentSeries(appointment.series_id);
+      await db.deleteAppointmentSeriesAsync(appointment.series_id);
       return res.json({ success: true, message: 'Todos los turnos de la serie recurrente han sido eliminados.' });
     }
 
-    const success = db.deleteAppointment(id);
-    if (!success) {
-      return res.status(404).json({ error: 'Turno no encontrado.' });
-    }
+    await db.deleteAppointmentAsync(id);
     res.json({ success: true, message: 'Turno eliminado correctamente.' });
   } catch (err) {
-    res.status(500).json({ error: 'Error al eliminar el turno.' });
+    console.error('Error deleting appointment:', err);
+    res.status(500).json({ error: err.message || 'Error al eliminar el turno.' });
   }
 });
 
@@ -584,7 +588,10 @@ router.post('/:id/send-whatsapp', authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { type = 'custom', customMessage } = req.body;
 
-    const appointment = db.getAppointmentById(id);
+    let appointment = await db.getAppointmentByIdAsync(id);
+    if (!appointment) {
+      appointment = db.getAppointmentById(id);
+    }
     if (!appointment) {
       return res.status(404).json({ error: 'Turno no encontrado.' });
     }
@@ -608,12 +615,15 @@ router.post('/:id/cancel', async (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
 
-    const appointment = db.getAppointmentById(id);
+    let appointment = await db.getAppointmentByIdAsync(id);
+    if (!appointment) {
+      appointment = db.getAppointmentById(id);
+    }
     if (!appointment) {
       return res.status(404).json({ error: 'Turno no encontrado.' });
     }
 
-    const updated = db.updateAppointment(id, {
+    const updated = await db.updateAppointmentAsync(id, {
       status: 'cancelled',
       cancellation_reason: reason || 'Cancelado por el usuario'
     });
@@ -622,15 +632,16 @@ router.post('/:id/cancel', async (req, res) => {
     try {
       await sendWhatsAppMessage({
         type: 'cancellation',
-        appointment: updated
+        appointment: updated || appointment
       });
     } catch (waErr) {
       console.warn('Error sending cancellation WhatsApp:', waErr.message);
     }
 
-    res.json({ success: true, message: 'Turno cancelado exitosamente.', appointment: updated });
+    res.json({ success: true, message: 'Turno cancelado exitosamente.', appointment: updated || appointment });
   } catch (err) {
-    res.status(500).json({ error: 'Error al cancelar el turno.' });
+    console.error('Error cancelling appointment:', err);
+    res.status(500).json({ error: err.message || 'Error al cancelar el turno.' });
   }
 });
 

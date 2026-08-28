@@ -378,6 +378,24 @@ export const db = {
     return (data.appointments || []).find((a) => a.id === id);
   },
 
+  getAppointmentByIdAsync: async (id) => {
+    const data = loadDatabase();
+    let app = (data.appointments || []).find((a) => a.id === id);
+    if (app) return app;
+
+    if (supabase) {
+      try {
+        const { data: dbApp, error } = await supabase.from('appointments').select('*').eq('id', id).single();
+        if (!error && dbApp) {
+          if (!data.appointments) data.appointments = [];
+          data.appointments.push(dbApp);
+          return dbApp;
+        }
+      } catch (e) {}
+    }
+    return null;
+  },
+
   createAppointment: (appointment) => {
     const data = loadDatabase();
     if (!data.appointments) data.appointments = [];
@@ -438,6 +456,36 @@ export const db = {
     return null;
   },
 
+  updateAppointmentAsync: async (id, updates) => {
+    const data = loadDatabase();
+    if (!data.appointments) data.appointments = [];
+    const index = data.appointments.findIndex((a) => a.id === id);
+    let updatedApp = null;
+
+    if (index !== -1) {
+      data.appointments[index] = {
+        ...data.appointments[index],
+        ...updates,
+        updated_at: new Date().toISOString()
+      };
+      updatedApp = data.appointments[index];
+    } else {
+      updatedApp = { id, ...updates, updated_at: new Date().toISOString() };
+      data.appointments.push(updatedApp);
+    }
+    saveDatabase();
+
+    if (supabase) {
+      try {
+        const { data: row, error } = await supabase.from('appointments').update(updates).eq('id', id).select().single();
+        if (!error && row) updatedApp = row;
+      } catch (e) {
+        console.error('Supabase update appointment error:', e);
+      }
+    }
+    return updatedApp;
+  },
+
   deleteAppointment: (id) => {
     const data = loadDatabase();
     if (!data.appointments) return false;
@@ -453,6 +501,22 @@ export const db = {
     return false;
   },
 
+  deleteAppointmentAsync: async (id) => {
+    const data = loadDatabase();
+    if (!data.appointments) data.appointments = [];
+    data.appointments = data.appointments.filter((a) => a.id !== id);
+    saveDatabase();
+
+    if (supabase) {
+      try {
+        await supabase.from('appointments').delete().eq('id', id);
+      } catch (e) {
+        console.error('Supabase delete appointment error:', e);
+      }
+    }
+    return true;
+  },
+
   deleteAppointmentSeries: (seriesId) => {
     const data = loadDatabase();
     if (!data.appointments) return false;
@@ -466,6 +530,22 @@ export const db = {
       return true;
     }
     return false;
+  },
+
+  deleteAppointmentSeriesAsync: async (seriesId) => {
+    const data = loadDatabase();
+    if (!data.appointments) data.appointments = [];
+    data.appointments = data.appointments.filter((a) => a.series_id !== seriesId);
+    saveDatabase();
+
+    if (supabase) {
+      try {
+        await supabase.from('appointments').delete().eq('series_id', seriesId);
+      } catch (e) {
+        console.error('Supabase delete appointment series error:', e);
+      }
+    }
+    return true;
   },
 
   // Schedule Config
