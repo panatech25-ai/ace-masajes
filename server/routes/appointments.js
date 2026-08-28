@@ -5,6 +5,29 @@ import { sendWhatsAppMessage } from '../services/whatsapp.js';
 
 const router = express.Router();
 
+// Helper: Get today's date string (YYYY-MM-DD) in Argentina timezone (UTC-3)
+function getArgentinaTodayStr() {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  return formatter.format(new Date());
+}
+
+// Helper: Get current minutes from midnight in Argentina timezone
+function getArgentinaCurrentMinutes() {
+  const timeFormatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  const [h, m] = timeFormatter.format(new Date()).split(':').map(Number);
+  return h * 60 + m;
+}
+
 // Helper: parse HH:mm to minutes from midnight
 function timeToMinutes(timeStr) {
   const [h, m] = timeStr.split(':').map(Number);
@@ -96,13 +119,23 @@ router.get('/availability', (req, res) => {
       breakEndMins = timeToMinutes(dayConfig.break_end);
     }
 
-    const now = new Date();
-    const isToday =
-      now.getFullYear() === year &&
-      now.getMonth() === month - 1 &&
-      now.getDate() === day;
+    // Use Argentina timezone (America/Argentina/Buenos_Aires - UTC-3)
+    // to accurately calculate today and current hour on cloud servers (Vercel)
+    const todayStr = getArgentinaTodayStr();
+    const isToday = date === todayStr;
+    const isPastDate = date < todayStr;
 
-    const currentMinutesToday = now.getHours() * 60 + now.getMinutes();
+    if (isPastDate) {
+      return res.json({
+        date,
+        day_name: dayConfig ? dayConfig.day_name : '',
+        is_working: false,
+        reason: 'No es posible reservar turnos en fechas pasadas.',
+        slots: []
+      });
+    }
+
+    const currentMinutesToday = getArgentinaCurrentMinutes();
     const minBookingMinutes = currentMinutesToday + minAdvanceHours * 60;
 
     const slots = [];
@@ -110,7 +143,7 @@ router.get('/availability', (req, res) => {
     for (let startMins = openMins; startMins + duration <= closeMins; startMins += slotInterval) {
       const endMins = startMins + duration;
 
-      // If today, check advance notice
+      // If today, check advance notice and past slots
       if (isToday && startMins < minBookingMinutes) {
         continue;
       }
@@ -231,6 +264,23 @@ router.post('/', async (req, res) => {
     const service = db.getServiceById(service_id);
     if (!service) {
       return res.status(404).json({ error: 'El servicio seleccionado no existe.' });
+    }
+
+    // Disallow booking past dates or past hours for today (unless admin)
+    if (source !== 'admin') {
+      const todayStr = getArgentinaTodayStr();
+      if (date < todayStr) {
+        return res.status(400).json({ error: 'No se pueden agendar turnos en fechas pasadas.' });
+      }
+      if (date === todayStr) {
+        const currentMins = getArgentinaCurrentMinutes();
+        const slotMins = timeToMinutes(time);
+        if (slotMins <= currentMins) {
+          return res.status(400).json({
+            error: 'El horario seleccionado ya pasó para el día de hoy. Por favor elija un horario para mañana o una fecha posterior.'
+          });
+        }
+      }
     }
 
     const endTime = addMinutesToTime(time, service.duration);
