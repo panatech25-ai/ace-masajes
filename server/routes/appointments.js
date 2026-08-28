@@ -455,24 +455,30 @@ router.get('/stats/summary', authMiddleware, async (req, res) => {
 });
 
 // GET /api/appointments/lookup (Public: lookup appointments by phone for "Mis Turnos")
-router.get('/lookup', (req, res) => {
+router.get('/lookup', async (req, res) => {
   try {
     const { phone } = req.query;
     if (!phone || !phone.trim()) {
       return res.status(400).json({ error: 'Debe ingresar un número de teléfono para buscar.' });
     }
 
-    const cleanPhone = phone.replace(/[^\d]/g, '');
-    if (cleanPhone.length < 6) {
+    const inputClean = phone.replace(/[^\d]/g, '');
+    if (inputClean.length < 6) {
       return res.status(400).json({ error: 'Ingrese al menos 6 dígitos del número de teléfono.' });
     }
 
-    const all = db.getAppointments();
+    const last6 = inputClean.slice(-6);
+
+    const all = await db.getAppointmentsAsync();
+
     // Filter matching appointments flexibly (ignoring prefixes like 54, 9, 0, 15)
     const matching = all.filter((a) => {
       if (!a.client_phone) return false;
       const aClean = a.client_phone.replace(/[^\d]/g, '');
-      return aClean.includes(cleanPhone) || cleanPhone.includes(aClean) || aClean.endsWith(cleanPhone) || cleanPhone.endsWith(aClean);
+      if (aClean === inputClean) return true;
+      if (aClean.includes(inputClean) || inputClean.includes(aClean)) return true;
+      if (last6.length >= 6 && aClean.endsWith(last6)) return true;
+      return false;
     });
 
     // Return safe public subset
