@@ -32,14 +32,14 @@ app.use((req, res, next) => {
 });
 
 // API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/appointments', appointmentRoutes);
-app.use('/api/services', serviceRoutes);
-app.use('/api/schedule', scheduleRoutes);
-app.use('/api/settings', settingsRoutes);
+app.use(['/api/auth', '/auth'], authRoutes);
+app.use(['/api/appointments', '/appointments'], appointmentRoutes);
+app.use(['/api/services', '/services'], serviceRoutes);
+app.use(['/api/schedule', '/schedule'], scheduleRoutes);
+app.use(['/api/settings', '/settings'], settingsRoutes);
 
 // Vercel Cron Endpoint for 30-min WhatsApp reminders
-app.all('/api/scheduler/check', async (req, res) => {
+app.all(['/api/scheduler/check', '/scheduler/check'], async (req, res) => {
   try {
     await checkUpcomingReminders();
     res.json({ success: true, message: 'Scheduler check completed', timestamp: new Date().toISOString() });
@@ -50,7 +50,7 @@ app.all('/api/scheduler/check', async (req, res) => {
 });
 
 // Health check
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
   res.json({
     status: 'ok',
     name: 'ACE Masajes API',
