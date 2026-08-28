@@ -66,24 +66,31 @@ const clientDistPath = path.join(__dirname, '../client/dist');
 const distPath = fs.existsSync(rootDistPath) ? rootDistPath : clientDistPath;
 app.use(express.static(distPath));
 
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api') || req.path.startsWith('/auth') || req.path.startsWith('/services') || req.path.startsWith('/appointments') || req.path.startsWith('/schedule') || req.path.startsWith('/settings')) {
-    return next();
+app.use((req, res, next) => {
+  if (
+    req.path.startsWith('/api') ||
+    req.path.startsWith('/auth') ||
+    req.path.startsWith('/services') ||
+    req.path.startsWith('/appointments') ||
+    req.path.startsWith('/schedule') ||
+    req.path.startsWith('/settings')
+  ) {
+    return res.status(404).json({ error: 'Ruta no encontrada' });
   }
-  res.sendFile(path.join(distPath, 'index.html'), (err) => {
-    if (err) {
-      res.status(200).send(`
-        <!DOCTYPE html>
-        <html>
-        <head><title>ACE Masajes - Alma, Cuerpo, Espiritu</title></head>
-        <body style="font-family: system-ui, sans-serif; text-align: center; padding: 50px;">
-          <h1>🌿 ACE Masajes API Backend Activo</h1>
-          <p>Servidor listo en Vercel / Node.js.</p>
-        </body>
-        </html>
-      `);
-    }
-  });
+  const indexPath = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath);
+  }
+  res.status(200).send(`
+    <!DOCTYPE html>
+    <html>
+    <head><title>ACE Masajes - Alma, Cuerpo, Espiritu</title></head>
+    <body style="font-family: system-ui, sans-serif; text-align: center; padding: 50px;">
+      <h1>🌿 ACE Masajes API Backend Activo</h1>
+      <p>Servidor listo en Vercel / Node.js.</p>
+    </body>
+    </html>
+  `);
 });
 
 export default app;
