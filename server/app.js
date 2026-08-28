@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
@@ -60,14 +61,16 @@ app.get(['/api/health', '/health'], (req, res) => {
 });
 
 // Serve frontend in production (if static files available)
+const rootDistPath = path.join(__dirname, '../dist');
 const clientDistPath = path.join(__dirname, '../client/dist');
-app.use(express.static(clientDistPath));
+const distPath = fs.existsSync(rootDistPath) ? rootDistPath : clientDistPath;
+app.use(express.static(distPath));
 
 app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api')) {
+  if (req.path.startsWith('/api') || req.path.startsWith('/auth') || req.path.startsWith('/services') || req.path.startsWith('/appointments') || req.path.startsWith('/schedule') || req.path.startsWith('/settings')) {
     return next();
   }
-  res.sendFile(path.join(clientDistPath, 'index.html'), (err) => {
+  res.sendFile(path.join(distPath, 'index.html'), (err) => {
     if (err) {
       res.status(200).send(`
         <!DOCTYPE html>
