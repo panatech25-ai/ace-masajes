@@ -13,12 +13,12 @@ const __dirname = path.dirname(__filename);
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'masajes_db.json');
 
-if (!fs.existsSync(DATA_DIR)) {
-  try {
+try {
+  if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
-  } catch (e) {
-    // In read-only serverless environments
   }
+} catch (e) {
+  // Read-only serverless environment
 }
 
 // Supabase client initialization (if credentials provided)
@@ -32,7 +32,7 @@ export const supabase = (SUPABASE_URL && SUPABASE_KEY)
 if (supabase) {
   console.log('🌿 Conectado a Supabase PostgreSQL Cloud');
 } else {
-  console.log('💾 Utilizando almacenamiento local JSON');
+  console.log('💾 Utilizando almacenamiento en memoria / JSON');
 }
 
 // Default initial state
@@ -164,26 +164,25 @@ let dbData = null;
 
 function loadDatabase() {
   if (dbData) return dbData;
+  dbData = JSON.parse(JSON.stringify(defaultInitialData));
   try {
     if (fs.existsSync(DB_FILE)) {
       const content = fs.readFileSync(DB_FILE, 'utf-8');
-      dbData = JSON.parse(content);
-      // Merge any missing root keys from defaultInitialData
-      let updated = false;
-      for (const key of Object.keys(defaultInitialData)) {
-        if (dbData[key] === undefined) {
-          dbData[key] = defaultInitialData[key];
-          updated = true;
-        }
-      }
-      if (updated) saveDatabase();
-    } else {
-      dbData = JSON.parse(JSON.stringify(defaultInitialData));
-      saveDatabase();
+      const parsed = JSON.parse(content);
+      dbData = {
+        ...defaultInitialData,
+        ...parsed,
+        users: parsed.users || defaultInitialData.users,
+        services: (parsed.services && parsed.services.length > 0) ? parsed.services : defaultInitialData.services,
+        schedule_config: parsed.schedule_config || defaultInitialData.schedule_config,
+        blocked_dates: parsed.blocked_dates || [],
+        appointments: parsed.appointments || [],
+        settings: parsed.settings || defaultInitialData.settings,
+        notification_logs: parsed.notification_logs || []
+      };
     }
   } catch (err) {
     dbData = JSON.parse(JSON.stringify(defaultInitialData));
-    saveDatabase();
   }
   return dbData;
 }
@@ -191,9 +190,11 @@ function loadDatabase() {
 function saveDatabase() {
   if (!dbData) return;
   try {
-    const tempFile = `${DB_FILE}.tmp`;
-    fs.writeFileSync(tempFile, JSON.stringify(dbData, null, 2), 'utf-8');
-    fs.renameSync(tempFile, DB_FILE);
+    if (fs.existsSync(DATA_DIR)) {
+      const tempFile = `${DB_FILE}.tmp`;
+      fs.writeFileSync(tempFile, JSON.stringify(dbData, null, 2), 'utf-8');
+      fs.renameSync(tempFile, DB_FILE);
+    }
   } catch (err) {
     // In serverless read-only mode, keep in memory
   }
@@ -299,7 +300,7 @@ export const db = {
   // Appointments
   getAppointments: (filter = {}) => {
     const data = loadDatabase();
-    let list = [...data.appointments];
+    let list = [...(data.appointments || [])];
 
     if (filter.date) {
       list = list.filter((a) => a.date === filter.date);
@@ -314,27 +315,29 @@ export const db = {
       const q = filter.search.toLowerCase();
       list = list.filter(
         (a) =>
-          a.client_name.toLowerCase().includes(q) ||
-          a.client_phone.toLowerCase().includes(q) ||
+          a.client_name?.toLowerCase().includes(q) ||
+          a.client_phone?.toLowerCase().includes(q) ||
           (a.client_address && a.client_address.toLowerCase().includes(q)) ||
-          a.service_name.toLowerCase().includes(q)
+          a.service_name?.toLowerCase().includes(q)
       );
     }
 
     // Sort by date and time
     return list.sort((a, b) => {
       if (a.date === b.date) {
-        return a.time.localeCompare(b.time);
+        return (a.time || '').localeCompare(b.time || '');
       }
-      return a.date.localeCompare(b.date);
+      return (a.date || '').localeCompare(b.date || '');
     });
   },
   getAppointmentById: (id) => {
     const data = loadDatabase();
-    return data.appointments.find((a) => a.id === id);
+    return (data.appointments || []).find((a) => a.id === id);
   },
   createAppointment: (appointment) => {
     const data = loadDatabase();
+    if (!data.appointments) data.appointments = [];
+
     const newAppointment = {
       id: `turn_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
       series_id: appointment.series_id || null,
@@ -363,12 +366,15 @@ export const db = {
     data.appointments.push(newAppointment);
     saveDatabase();
     if (supabase) {
-      supabase.from('appointments').insert(newAppointment).catch(console.error);
+      supabase.from('appointments').insert(newAppointment).then(({ error }) => {
+        if (error) console.error('Supabase error inserting appointment:', error);
+      }).catch(console.error);
     }
     return newAppointment;
   },
   updateAppointment: (id, updates) => {
     const data = loadDatabase();
+    if (!data.appointments) data.appointments = [];
     const index = data.appointments.findIndex((a) => a.id === id);
     if (index !== -1) {
       data.appointments[index] = {
@@ -386,6 +392,7 @@ export const db = {
   },
   deleteAppointment: (id) => {
     const data = loadDatabase();
+    if (!data.appointments) return false;
     const initialLen = data.appointments.length;
     data.appointments = data.appointments.filter((a) => a.id !== id);
     if (data.appointments.length !== initialLen) {
@@ -399,6 +406,7 @@ export const db = {
   },
   deleteAppointmentSeries: (seriesId) => {
     const data = loadDatabase();
+    if (!data.appointments) return false;
     const initialLen = data.appointments.length;
     data.appointments = data.appointments.filter((a) => a.series_id !== seriesId);
     if (data.appointments.length !== initialLen) {
@@ -414,12 +422,12 @@ export const db = {
   // Schedule Config
   getScheduleConfig: () => {
     const data = loadDatabase();
-    return data.schedule_config;
+    return data.schedule_config || defaultInitialData.schedule_config;
   },
   updateScheduleConfig: (newConfig) => {
     const data = loadDatabase();
     data.schedule_config = {
-      ...data.schedule_config,
+      ...(data.schedule_config || defaultInitialData.schedule_config),
       ...newConfig
     };
     saveDatabase();
@@ -471,12 +479,12 @@ export const db = {
   // Settings
   getSettings: () => {
     const data = loadDatabase();
-    return data.settings;
+    return data.settings || defaultInitialData.settings;
   },
   updateSettings: (newSettings) => {
     const data = loadDatabase();
     data.settings = {
-      ...data.settings,
+      ...(data.settings || defaultInitialData.settings),
       ...newSettings
     };
     saveDatabase();

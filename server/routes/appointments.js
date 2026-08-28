@@ -389,7 +389,7 @@ router.post('/', async (req, res) => {
     });
   } catch (err) {
     console.error('Error creating appointment:', err);
-    res.status(500).json({ error: 'Error al registrar el turno.' });
+    res.status(500).json({ error: err.message || 'Error al registrar el turno.' });
   }
 });
 
