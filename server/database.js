@@ -10,7 +10,9 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DATA_DIR = path.join(__dirname, 'data');
+// In serverless environments (Vercel/AWS Lambda), /tmp is the only writable directory
+const IS_SERVERLESS = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NOW_REGION);
+const DATA_DIR = IS_SERVERLESS ? '/tmp' : path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'masajes_db.json');
 
 try {
@@ -18,7 +20,7 @@ try {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
 } catch (e) {
-  // Read-only serverless environment
+  // Read-only serverless fallback
 }
 
 // Supabase client initialization (if credentials provided)
@@ -32,7 +34,7 @@ export const supabase = (SUPABASE_URL && SUPABASE_KEY)
 if (supabase) {
   console.log('🌿 Conectado a Supabase PostgreSQL Cloud');
 } else {
-  console.log('💾 Utilizando almacenamiento en memoria / JSON');
+  console.log('💾 Utilizando almacenamiento local /tmp JSON');
 }
 
 // Default initial state
@@ -180,6 +182,8 @@ function loadDatabase() {
         settings: parsed.settings || defaultInitialData.settings,
         notification_logs: parsed.notification_logs || []
       };
+    } else {
+      saveDatabase();
     }
   } catch (err) {
     dbData = JSON.parse(JSON.stringify(defaultInitialData));
@@ -190,11 +194,9 @@ function loadDatabase() {
 function saveDatabase() {
   if (!dbData) return;
   try {
-    if (fs.existsSync(DATA_DIR)) {
-      const tempFile = `${DB_FILE}.tmp`;
-      fs.writeFileSync(tempFile, JSON.stringify(dbData, null, 2), 'utf-8');
-      fs.renameSync(tempFile, DB_FILE);
-    }
+    const tempFile = `${DB_FILE}.tmp`;
+    fs.writeFileSync(tempFile, JSON.stringify(dbData, null, 2), 'utf-8');
+    fs.renameSync(tempFile, DB_FILE);
   } catch (err) {
     // In serverless read-only mode, keep in memory
   }
@@ -206,31 +208,56 @@ export const db = {
   save: () => saveDatabase(),
 
   // Users
-  getUserByUsername: (username) => {
+  getUserByUsername: async (username) => {
     const data = loadDatabase();
+    if (supabase) {
+      try {
+        const { data: dbUser, error } = await supabase.from('users').select('*').ilike('username', username).single();
+        if (!error && dbUser) return dbUser;
+      } catch (e) {}
+    }
     return data.users.find((u) => u.username.toLowerCase() === username.toLowerCase());
   },
-  getUserById: (id) => {
+  getUserById: async (id) => {
     const data = loadDatabase();
+    if (supabase) {
+      try {
+        const { data: dbUser, error } = await supabase.from('users').select('*').eq('id', id).single();
+        if (!error && dbUser) return dbUser;
+      } catch (e) {}
+    }
     return data.users.find((u) => u.id === id);
   },
-  updateUserPassword: (id, newHash) => {
+  updateUserPassword: async (id, newHash) => {
     const data = loadDatabase();
     const user = data.users.find((u) => u.id === id);
     if (user) {
       user.password_hash = newHash;
       saveDatabase();
-      if (supabase) {
-        supabase.from('users').update({ password_hash: newHash }).eq('id', id).catch(console.error);
-      }
-      return true;
     }
-    return false;
+    if (supabase) {
+      try {
+        await supabase.from('users').update({ password_hash: newHash }).eq('id', id);
+      } catch (e) {}
+    }
+    return true;
   },
 
   // Services
-  getServices: (activeOnly = false) => {
+  getServices: async (activeOnly = false) => {
     const data = loadDatabase();
+    if (supabase) {
+      try {
+        let q = supabase.from('services').select('*').order('order', { ascending: true });
+        if (activeOnly) q = q.eq('active', true);
+        const { data: dbServices, error } = await q;
+        if (!error && Array.isArray(dbServices) && dbServices.length > 0) {
+          data.services = dbServices;
+          saveDatabase();
+          return dbServices;
+        }
+      } catch (e) {}
+    }
     if (activeOnly) {
       return data.services.filter((s) => s.active);
     }
@@ -245,7 +272,7 @@ export const db = {
       defaultInitialData.services[0]
     );
   },
-  createService: (service) => {
+  createService: async (service) => {
     const data = loadDatabase();
     const newService = {
       id: `srv_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
@@ -261,11 +288,13 @@ export const db = {
     data.services.push(newService);
     saveDatabase();
     if (supabase) {
-      supabase.from('services').insert(newService).catch(console.error);
+      try {
+        await supabase.from('services').insert(newService);
+      } catch (e) {}
     }
     return newService;
   },
-  updateService: (id, updates) => {
+  updateService: async (id, updates) => {
     const data = loadDatabase();
     const index = data.services.findIndex((s) => s.id === id);
     if (index !== -1) {
@@ -277,20 +306,24 @@ export const db = {
       };
       saveDatabase();
       if (supabase) {
-        supabase.from('services').update(updates).eq('id', id).catch(console.error);
+        try {
+          await supabase.from('services').update(updates).eq('id', id);
+        } catch (e) {}
       }
       return data.services[index];
     }
     return null;
   },
-  deleteService: (id) => {
+  deleteService: async (id) => {
     const data = loadDatabase();
     const initialLen = data.services.length;
     data.services = data.services.filter((s) => s.id !== id);
     if (data.services.length !== initialLen) {
       saveDatabase();
       if (supabase) {
-        supabase.from('services').delete().eq('id', id).catch(console.error);
+        try {
+          await supabase.from('services').delete().eq('id', id);
+        } catch (e) {}
       }
       return true;
     }
@@ -330,11 +363,45 @@ export const db = {
       return (a.date || '').localeCompare(b.date || '');
     });
   },
+
+  getAppointmentsAsync: async (filter = {}) => {
+    let list = [];
+    if (supabase) {
+      try {
+        let query = supabase.from('appointments').select('*');
+        if (filter.date) query = query.eq('date', filter.date);
+        if (filter.startDate && filter.endDate) {
+          query = query.gte('date', filter.startDate).lte('date', filter.endDate);
+        }
+        if (filter.status) query = query.eq('status', filter.status);
+        const { data: dbRows, error } = await query;
+        if (!error && Array.isArray(dbRows)) {
+          list = dbRows;
+          const data = loadDatabase();
+          data.appointments = dbRows;
+          saveDatabase();
+        }
+      } catch (err) {
+        console.error('Supabase getAppointments error:', err);
+      }
+    }
+    if (list.length === 0) {
+      list = db.getAppointments(filter);
+    }
+    return list.sort((a, b) => {
+      if (a.date === b.date) {
+        return (a.time || '').localeCompare(b.time || '');
+      }
+      return (a.date || '').localeCompare(b.date || '');
+    });
+  },
+
   getAppointmentById: (id) => {
     const data = loadDatabase();
     return (data.appointments || []).find((a) => a.id === id);
   },
-  createAppointment: (appointment) => {
+
+  createAppointment: async (appointment) => {
     const data = loadDatabase();
     if (!data.appointments) data.appointments = [];
 
@@ -363,16 +430,22 @@ export const db = {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
+
     data.appointments.push(newAppointment);
     saveDatabase();
+
     if (supabase) {
-      supabase.from('appointments').insert(newAppointment).then(({ error }) => {
+      try {
+        const { error } = await supabase.from('appointments').insert(newAppointment);
         if (error) console.error('Supabase error inserting appointment:', error);
-      }).catch(console.error);
+      } catch (err) {
+        console.error('Supabase insert appointment exception:', err);
+      }
     }
     return newAppointment;
   },
-  updateAppointment: (id, updates) => {
+
+  updateAppointment: async (id, updates) => {
     const data = loadDatabase();
     if (!data.appointments) data.appointments = [];
     const index = data.appointments.findIndex((a) => a.id === id);
@@ -384,13 +457,16 @@ export const db = {
       };
       saveDatabase();
       if (supabase) {
-        supabase.from('appointments').update(updates).eq('id', id).catch(console.error);
+        try {
+          await supabase.from('appointments').update(updates).eq('id', id);
+        } catch (e) {}
       }
       return data.appointments[index];
     }
     return null;
   },
-  deleteAppointment: (id) => {
+
+  deleteAppointment: async (id) => {
     const data = loadDatabase();
     if (!data.appointments) return false;
     const initialLen = data.appointments.length;
@@ -398,13 +474,16 @@ export const db = {
     if (data.appointments.length !== initialLen) {
       saveDatabase();
       if (supabase) {
-        supabase.from('appointments').delete().eq('id', id).catch(console.error);
+        try {
+          await supabase.from('appointments').delete().eq('id', id);
+        } catch (e) {}
       }
       return true;
     }
     return false;
   },
-  deleteAppointmentSeries: (seriesId) => {
+
+  deleteAppointmentSeries: async (seriesId) => {
     const data = loadDatabase();
     if (!data.appointments) return false;
     const initialLen = data.appointments.length;
@@ -412,7 +491,9 @@ export const db = {
     if (data.appointments.length !== initialLen) {
       saveDatabase();
       if (supabase) {
-        supabase.from('appointments').delete().eq('series_id', seriesId).catch(console.error);
+        try {
+          await supabase.from('appointments').delete().eq('series_id', seriesId);
+        } catch (e) {}
       }
       return true;
     }
@@ -424,7 +505,7 @@ export const db = {
     const data = loadDatabase();
     return data.schedule_config || defaultInitialData.schedule_config;
   },
-  updateScheduleConfig: (newConfig) => {
+  updateScheduleConfig: async (newConfig) => {
     const data = loadDatabase();
     data.schedule_config = {
       ...(data.schedule_config || defaultInitialData.schedule_config),
@@ -432,7 +513,9 @@ export const db = {
     };
     saveDatabase();
     if (supabase) {
-      supabase.from('schedule_config').upsert({ id: 1, ...data.schedule_config }).catch(console.error);
+      try {
+        await supabase.from('schedule_config').upsert({ id: 1, ...data.schedule_config });
+      } catch (e) {}
     }
     return data.schedule_config;
   },
@@ -442,7 +525,7 @@ export const db = {
     const data = loadDatabase();
     return data.blocked_dates || [];
   },
-  addBlockedDate: (blocked) => {
+  addBlockedDate: async (blocked) => {
     const data = loadDatabase();
     const newBlocked = {
       id: `blk_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
@@ -457,11 +540,13 @@ export const db = {
     data.blocked_dates.push(newBlocked);
     saveDatabase();
     if (supabase) {
-      supabase.from('blocked_dates').insert(newBlocked).catch(console.error);
+      try {
+        await supabase.from('blocked_dates').insert(newBlocked);
+      } catch (e) {}
     }
     return newBlocked;
   },
-  deleteBlockedDate: (id) => {
+  deleteBlockedDate: async (id) => {
     const data = loadDatabase();
     if (!data.blocked_dates) return false;
     const initialLen = data.blocked_dates.length;
@@ -469,7 +554,9 @@ export const db = {
     if (data.blocked_dates.length !== initialLen) {
       saveDatabase();
       if (supabase) {
-        supabase.from('blocked_dates').delete().eq('id', id).catch(console.error);
+        try {
+          await supabase.from('blocked_dates').delete().eq('id', id);
+        } catch (e) {}
       }
       return true;
     }
@@ -481,7 +568,7 @@ export const db = {
     const data = loadDatabase();
     return data.settings || defaultInitialData.settings;
   },
-  updateSettings: (newSettings) => {
+  updateSettings: async (newSettings) => {
     const data = loadDatabase();
     data.settings = {
       ...(data.settings || defaultInitialData.settings),
@@ -489,13 +576,15 @@ export const db = {
     };
     saveDatabase();
     if (supabase) {
-      supabase.from('settings').upsert({ id: 1, ...data.settings }).catch(console.error);
+      try {
+        await supabase.from('settings').upsert({ id: 1, ...data.settings });
+      } catch (e) {}
     }
     return data.settings;
   },
 
   // Notification Logs
-  addNotificationLog: (log) => {
+  addNotificationLog: async (log) => {
     const data = loadDatabase();
     const newLog = {
       id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
@@ -516,7 +605,9 @@ export const db = {
     }
     saveDatabase();
     if (supabase) {
-      supabase.from('notification_logs').insert(newLog).catch(console.error);
+      try {
+        await supabase.from('notification_logs').insert(newLog);
+      } catch (e) {}
     }
     return newLog;
   },

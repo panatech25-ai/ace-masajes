@@ -394,10 +394,10 @@ router.post('/', async (req, res) => {
 });
 
 // GET /api/appointments (Admin: list / search / filter)
-router.get('/', authMiddleware, (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
     const { date, startDate, endDate, status, search } = req.query;
-    const appointments = db.getAppointments({ date, startDate, endDate, status, search });
+    const appointments = await db.getAppointmentsAsync({ date, startDate, endDate, status, search });
     res.json(appointments);
   } catch (err) {
     console.error('Error fetching appointments:', err);
@@ -406,10 +406,10 @@ router.get('/', authMiddleware, (req, res) => {
 });
 
 // GET /api/appointments/stats/summary (Admin summary KPIs)
-router.get('/stats/summary', authMiddleware, (req, res) => {
+router.get('/stats/summary', authMiddleware, async (req, res) => {
   try {
-    const all = db.getAppointments();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const all = await db.getAppointmentsAsync();
+    const todayStr = getArgentinaTodayStr();
 
     const todayAppointments = all.filter((a) => a.date === todayStr);
     const confirmedToday = todayAppointments.filter((a) => a.status === 'confirmed').length;
