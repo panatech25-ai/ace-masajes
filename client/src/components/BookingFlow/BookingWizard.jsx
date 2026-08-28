@@ -10,10 +10,79 @@ import { Sparkles, Calendar as CalendarIcon, User, Check, ArrowLeft, ArrowRight,
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+const DEFAULT_SERVICES = [
+  {
+    id: 'srv_relajantes',
+    name: 'Relajantes',
+    description: 'Movimientos suaves y armonizadores con aceites esenciales para calmar el sistema nervioso, reducir el estrés y relajar todo el cuerpo.',
+    duration: 60,
+    price: 40000,
+    active: true,
+    category: 'Relajación',
+    icon: 'Sparkles',
+    order: 1
+  },
+  {
+    id: 'srv_drenaje',
+    name: 'Drenaje linfático',
+    description: 'Terapia manual suave y rítmica que estimula el sistema linfático para eliminar toxinas, reducir retención de líquidos e inflamación.',
+    duration: 60,
+    price: 40000,
+    active: true,
+    category: 'Terapéutico',
+    icon: 'Droplets',
+    order: 2
+  },
+  {
+    id: 'srv_reflexologia',
+    name: 'Reflexología',
+    description: 'Presión en puntos reflejos clave de los pies y manos que corresponden y equilibran los diferentes órganos y sistemas del cuerpo.',
+    duration: 60,
+    price: 40000,
+    active: true,
+    category: 'Holístico',
+    icon: 'HeartPulse',
+    order: 3
+  },
+  {
+    id: 'srv_reductores',
+    name: 'Reductores',
+    description: 'Masaje dinámico con maniobras intensas y modeladoras enfocado en disolver adiposidades localizadas, activar la circulación y tonificar.',
+    duration: 60,
+    price: 40000,
+    active: true,
+    category: 'Modelador',
+    icon: 'Flame',
+    order: 4
+  },
+  {
+    id: 'srv_ventosas',
+    name: 'Con ventosas',
+    description: 'Terapia milenaria con ventosas de succión que incrementa la microcirculación, alivia dolores miofasciales y oxigena los tejidos profundos.',
+    duration: 60,
+    price: 40000,
+    active: true,
+    category: 'Descontracturante',
+    icon: 'Activity',
+    order: 5
+  },
+  {
+    id: 'srv_maderoterapia',
+    name: 'Maderoterapia',
+    description: 'Tratamiento natural que utiliza instrumentos de madera noble diseñados para adaptarse a la anatomía, reafirmar contornos y desbloquear energía.',
+    duration: 60,
+    price: 40000,
+    active: true,
+    category: 'Holístico',
+    icon: 'Smile',
+    order: 6
+  }
+];
+
 export default function BookingWizard() {
   const [step, setStep] = useState(1);
-  const [services, setServices] = useState([]);
-  const [selectedService, setSelectedService] = useState(null);
+  const [services, setServices] = useState(DEFAULT_SERVICES);
+  const [selectedService, setSelectedService] = useState(DEFAULT_SERVICES[0]);
   
   // Date & Time state
   const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -40,12 +109,16 @@ export default function BookingWizard() {
     async function loadServices() {
       try {
         const list = await api.getServices();
-        setServices(list);
-        if (list.length > 0 && !selectedService) {
-          setSelectedService(list[0]);
+        if (Array.isArray(list) && list.length > 0) {
+          setServices(list);
+          setSelectedService((prev) => {
+            if (!prev) return list[0];
+            const found = list.find((s) => s.id === prev.id);
+            return found || list[0];
+          });
         }
       } catch (err) {
-        console.error('Error loading services:', err);
+        console.warn('Usando servicios locales de respaldo:', err);
       }
     }
     loadServices();
