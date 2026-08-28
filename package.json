@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Sistema de gestión de turnos para ACE Masajes - Alma, Cuerpo, Espíritu",
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
-    "build": "npm --prefix client install && npm --prefix client run build",
-    "vercel-build": "npm --prefix client install && npm --prefix client run build",
+    "build": "npm run build --workspace=client",
     "dev:server": "node --watch server/index.js",
-    "dev:client": "npm --prefix client run dev",
+    "dev:client": "npm run dev --workspace=client",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "start": "node server/index.js"
   },
