@@ -51,9 +51,10 @@ export default function AppointmentModal({
   const [deleteChoiceOpen, setDeleteChoiceOpen] = useState(false);
 
   useEffect(() => {
-    if (appointment) {
+    const isEdit = Boolean(appointment && appointment.id);
+    if (isEdit) {
       setFormData({
-        service_id: appointment.service_id || '',
+        service_id: appointment.service_id || (services[0]?.id || ''),
         date: appointment.date || new Date().toISOString().split('T')[0],
         time: appointment.time || '10:00',
         client_name: appointment.client_name || '',
@@ -66,7 +67,7 @@ export default function AppointmentModal({
     } else {
       setFormData({
         service_id: services[0]?.id || '',
-        date: new Date().toISOString().split('T')[0],
+        date: appointment?.date || new Date().toISOString().split('T')[0],
         time: '10:00',
         client_name: '',
         client_address: '',
@@ -123,8 +124,10 @@ export default function AppointmentModal({
     setLoading(true);
     setError(null);
 
+    const isEdit = Boolean(appointment && appointment.id);
+
     try {
-      if (appointment) {
+      if (isEdit) {
         // Update existing
         await api.updateAppointment(appointment.id, formData);
       } else {

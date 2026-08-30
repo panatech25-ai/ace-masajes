@@ -48,7 +48,7 @@ function addMinutesToTime(timeStr, minutesToAdd) {
 }
 
 // GET /api/appointments/availability?date=YYYY-MM-DD&service_id=xxx
-router.get('/availability', (req, res) => {
+router.get('/availability', async (req, res) => {
   try {
     const { date, service_id } = req.query;
 
@@ -98,7 +98,8 @@ router.get('/availability', (req, res) => {
     }
 
     // Existing appointments on this date (confirmed or pending)
-    const existingAppointments = db.getAppointments({ date }).filter(
+    const allAppointmentsOnDate = await db.getAppointmentsAsync({ date });
+    const existingAppointments = allAppointmentsOnDate.filter(
       (a) => a.status === 'confirmed' || a.status === 'pending'
     );
 
@@ -170,14 +171,12 @@ router.get('/availability', (req, res) => {
       // Check existing appointments overlap (including buffer after each appointment)
       let hasConflict = false;
       for (const app of existingAppointments) {
+        if (app.status === 'cancelled') continue;
         const appStart = timeToMinutes(app.time);
         const appDuration = app.service_duration || 60;
-        const appEndWithBuffer = appStart + appDuration + buffer;
+        const appEnd = appStart + appDuration;
 
-        // An appointment occupies [appStart, appEndWithBuffer]
-        // Our new appointment + buffer occupies [startMins, endMins + buffer]
-        // Check if [startMins, endMins] overlaps with [appStart - buffer, appEnd]
-        if (startMins < (appStart + appDuration) && (startMins + duration + buffer) > appStart) {
+        if (startMins < (appEnd + buffer) && endMins > appStart) {
           hasConflict = true;
           break;
         }
@@ -255,9 +254,9 @@ router.post('/', async (req, res) => {
     } = req.body;
 
     // Validations
-    if (!service_id || !date || !time || !client_name || !client_phone || !client_address) {
+    if (!service_id || !date || !time || !client_name || !client_phone) {
       return res.status(400).json({
-        error: 'Por favor complete todos los campos obligatorios: Servicio, Fecha, Hora, Nombre, Dirección y Teléfono.'
+        error: 'Por favor complete los campos obligatorios: Servicio, Fecha, Hora, Nombre y Teléfono.'
       });
     }
 
@@ -302,26 +301,33 @@ router.post('/', async (req, res) => {
     const createdAppointments = [];
     const skippedDates = [];
 
+    const safeAddress = (client_address && client_address.trim()) ? client_address.trim() : 'Dirección no especificada';
+
     for (let i = 0; i < datesToBook.length; i++) {
       const bookDate = datesToBook[i];
 
       // Check conflict for each date
-      const existing = db.getAppointments({ date: bookDate }).filter(
+      const allOnBookDate = await db.getAppointmentsAsync({ date: bookDate });
+      const existing = allOnBookDate.filter(
         (a) => a.status === 'confirmed' || a.status === 'pending'
       );
 
       let conflict = false;
       for (const app of existing) {
+        if (app.status === 'cancelled') continue;
         const appStart = timeToMinutes(app.time);
         const appDuration = app.service_duration || 60;
-        if (newStartMins < (appStart + appDuration) && (newStartMins + service.duration + buffer) > appStart) {
+        const appEnd = appStart + appDuration;
+        const newEndMins = newStartMins + service.duration;
+
+        if (newStartMins < (appEnd + buffer) && newEndMins > appStart) {
           conflict = true;
           break;
         }
       }
 
-      // If initial date has conflict, return error
-      if (i === 0 && conflict) {
+      // If initial date has conflict and not admin, return error
+      if (i === 0 && conflict && source !== 'admin') {
         return res.status(409).json({
           error: `El horario ${time} hs para la primera fecha (${bookDate}) ya está ocupado. Elija otro horario.`
         });
@@ -337,7 +343,7 @@ router.post('/', async (req, res) => {
         ? `${recurrenceType === 'weekly' ? 'Semanal' : recurrenceType === 'biweekly' ? 'Quincenal' : recurrenceType === 'monthly' ? 'Mensual' : 'Personalizado'} (${i + 1}/${datesToBook.length})`
         : null;
 
-      const app = db.createAppointment({
+      const app = await db.createAppointment({
         series_id: seriesId,
         recurrence_type: recurrenceType,
         recurrence_index: i + 1,
@@ -348,7 +354,7 @@ router.post('/', async (req, res) => {
         service_duration: service.duration,
         service_price: service.price,
         client_name,
-        client_address,
+        client_address: safeAddress,
         client_phone,
         client_notes: client_notes || '',
         date: bookDate,
