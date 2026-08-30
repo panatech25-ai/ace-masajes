@@ -667,12 +667,14 @@ export const db = {
           name: app.client_name || 'Cliente',
           address: app.client_address || '',
           total_appointments: 1,
+          total_spent: Number(app.service_price || 0),
           last_appointment: app.date,
           history: [app]
         });
       } else {
         const client = map.get(phone);
         client.total_appointments += 1;
+        client.total_spent = (client.total_spent || 0) + Number(app.service_price || 0);
         if (app.date > client.last_appointment) {
           client.last_appointment = app.date;
         }
@@ -680,5 +682,40 @@ export const db = {
       }
     }
     return Array.from(map.values());
+  },
+
+  clearAllAppointmentsAndLogs: async () => {
+    const data = loadDatabase();
+    data.appointments = [];
+    data.notification_logs = [];
+    saveDatabase();
+    if (supabase) {
+      try {
+        await supabase.from('appointments').delete().neq('id', 'placeholder_not_matching');
+        await supabase.from('notification_logs').delete().neq('id', 'placeholder_not_matching');
+      } catch (e) {
+        console.error('Error clearing Supabase records:', e);
+      }
+    }
+    return true;
+  },
+
+  deleteClientByPhone: async (phone) => {
+    const data = loadDatabase();
+    const cleanPhone = (phone || '').replace(/[^\d]/g, '');
+    if (!data.appointments) data.appointments = [];
+    data.appointments = data.appointments.filter((a) => {
+      const aClean = (a.client_phone || '').replace(/[^\d]/g, '');
+      return aClean !== cleanPhone;
+    });
+    saveDatabase();
+    if (supabase) {
+      try {
+        await supabase.from('appointments').delete().ilike('client_phone', `%${cleanPhone}%`);
+      } catch (e) {
+        console.error('Error deleting client from Supabase:', e);
+      }
+    }
+    return true;
   }
 };

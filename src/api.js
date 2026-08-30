@@ -124,5 +124,7 @@ export const api = {
   }),
 
   // Admin Clients
-  getClients: () => request('/settings/clients/all')
+  getClients: () => request('/settings/clients/all'),
+  clearAllClients: () => request('/settings/clients/clear', { method: 'DELETE' }),
+  deleteClient: (phone) => request(`/settings/clients/${encodeURIComponent(phone)}`, { method: 'DELETE' })
 };

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Users, Phone, MapPin, Calendar, DollarSign, MessageCircle, Search, Sparkles, ChevronRight, History } from 'lucide-react';
+import { api } from '../../api';
+import { Users, Phone, MapPin, Calendar, DollarSign, MessageCircle, Search, Sparkles, ChevronRight, History, Trash2 } from 'lucide-react';
 
 export default function ClientsView({ clients, onRefresh }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClientHistory, setSelectedClientHistory] = useState(null);
+  const [clearing, setClearing] = useState(false);
 
   const filteredClients = clients.filter((c) => {
     if (!searchTerm.trim()) return true;
@@ -14,6 +16,29 @@ export default function ClientsView({ clients, onRefresh }) {
       c.address?.toLowerCase().includes(q)
     );
   });
+
+  const handleDeleteClient = async (phone, name) => {
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar al cliente "${name}" y todos sus registros?`)) return;
+    try {
+      await api.deleteClient(phone);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      alert('Error al eliminar cliente: ' + err.message);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!window.confirm('⚠️ ¿Estás seguro de que deseas BORRAR TODOS los clientes y turnos registrados? Esta acción limpiará todos los datos para comenzar de cero.')) return;
+    setClearing(true);
+    try {
+      await api.clearAllClients();
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      alert('Error al limpiar registros: ' + err.message);
+    } finally {
+      setClearing(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -32,8 +57,22 @@ export default function ClientsView({ clients, onRefresh }) {
           />
         </div>
 
-        <div className="text-xs font-semibold text-stone-500">
-          Total de clientes registrados: <strong className="text-stone-900">{clients.length}</strong>
+        <div className="flex items-center gap-4 flex-wrap justify-between w-full md:w-auto">
+          <div className="text-xs font-semibold text-stone-500">
+            Total de clientes registrados: <strong className="text-stone-900">{clients.length}</strong>
+          </div>
+
+          {clients.length > 0 && (
+            <button
+              type="button"
+              disabled={clearing}
+              onClick={handleClearAll}
+              className="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold transition-all flex items-center gap-1.5 border border-red-200"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Borrar todos los clientes
+            </button>
+          )}
         </div>
       </div>
 
@@ -102,19 +141,29 @@ export default function ClientsView({ clients, onRefresh }) {
 
                     {/* Last Visit */}
                     <td className="py-4 px-4 sm:px-6 whitespace-nowrap text-stone-500">
-                      {client.last_appointment_date}
+                      {client.last_appointment || '-'}
                     </td>
 
                     {/* Actions */}
                     <td className="py-4 px-4 sm:px-6 text-right whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedClientHistory(client)}
-                        className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold inline-flex items-center gap-1 transition-all"
-                      >
-                        <History className="w-3.5 h-3.5" />
-                        Historial
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedClientHistory(client)}
+                          className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold inline-flex items-center gap-1 transition-all"
+                        >
+                          <History className="w-3.5 h-3.5" />
+                          Historial
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteClient(client.phone, client.name)}
+                          className="p-1.5 rounded-xl text-red-500 hover:text-red-700 hover:bg-red-50 transition-all"
+                          title="Eliminar cliente"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

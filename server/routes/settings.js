@@ -93,13 +93,34 @@ router.post('/run-scheduler-now', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/clients (Admin: directory of clients)
+// GET /api/settings/clients/all (Admin: directory of clients)
 router.get('/clients/all', authMiddleware, (req, res) => {
   try {
     const clients = db.getClients();
     res.json(clients);
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener clientes.' });
+  }
+});
+
+// DELETE /api/settings/clients/clear (Admin: clear all registered clients & appointments)
+router.delete('/clients/clear', authMiddleware, async (req, res) => {
+  try {
+    await db.clearAllAppointmentsAndLogs();
+    res.json({ success: true, message: 'Todos los registros de clientes y turnos han sido eliminados correctamente.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar los registros de clientes.' });
+  }
+});
+
+// DELETE /api/settings/clients/:phone (Admin: delete specific client)
+router.delete('/clients/:phone', authMiddleware, async (req, res) => {
+  try {
+    const { phone } = req.params;
+    await db.deleteClientByPhone(phone);
+    res.json({ success: true, message: 'Cliente eliminado correctamente.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar el cliente.' });
   }
 });
 
