@@ -607,6 +607,61 @@ export const db = {
     return newAppointment;
   },
 
+  createAppointmentsBatch: async (appointmentsList) => {
+    const data = loadDatabase();
+    if (!data.appointments) data.appointments = [];
+
+    const createdList = [];
+    const timestamp = Date.now();
+
+    for (let i = 0; i < appointmentsList.length; i++) {
+      const item = appointmentsList[i];
+      const newApp = {
+        id: item.id || `turn_${timestamp}_${i}_${Math.random().toString(36).substr(2, 4)}`,
+        series_id: item.series_id || null,
+        recurrence_type: item.recurrence_type || null,
+        recurrence_index: item.recurrence_index || null,
+        recurrence_total: item.recurrence_total || null,
+        recurrence_rule: item.recurrence_rule || null,
+        service_id: item.service_id,
+        service_name: item.service_name,
+        service_duration: parseInt(item.service_duration, 10) || 60,
+        service_price: parseFloat(item.service_price) || 0,
+        client_name: item.client_name,
+        client_address: item.client_address || '',
+        client_phone: item.client_phone,
+        client_notes: item.client_notes || '',
+        date: item.date,
+        time: item.time,
+        end_time: item.end_time,
+        status: item.status || 'confirmed',
+        reminder_sent: 0,
+        confirmation_sent: 0,
+        source: item.source || 'admin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      data.appointments.push(newApp);
+      createdList.push(newApp);
+    }
+
+    saveDatabase();
+    appointmentsCacheTime = 0;
+
+    if (supabase && createdList.length > 0) {
+      try {
+        const { error } = await supabase.from('appointments').insert(createdList);
+        if (error) {
+          console.error('Supabase batch insert error:', error);
+        }
+      } catch (err) {
+        console.error('Supabase batch insert exception:', err);
+      }
+    }
+
+    return createdList;
+  },
+
   updateAppointment: (id, updates) => {
     const data = loadDatabase();
     if (!data.appointments) data.appointments = [];

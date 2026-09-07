@@ -260,10 +260,18 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const service = db.getServiceById(service_id);
+    const services = await db.getServicesAsync();
+    const service = services.find((s) => s.id === service_id) || db.getServiceById(service_id);
     if (!service) {
       return res.status(404).json({ error: 'El servicio seleccionado no existe.' });
     }
+
+    // Prioritize explicitly passed duration and price from client
+    const serviceDuration = parseInt(req.body.service_duration, 10) || parseInt(service.duration, 10) || 60;
+    const servicePrice = (req.body.service_price !== undefined && !isNaN(parseFloat(req.body.service_price)))
+      ? parseFloat(req.body.service_price)
+      : parseFloat(service.price) || 0;
+    const serviceName = req.body.service_name || service.name;
 
     // Disallow booking past dates or past hours for today (unless admin)
     if (source !== 'admin') {
@@ -282,10 +290,11 @@ router.post('/', async (req, res) => {
       }
     }
 
-    const endTime = addMinutesToTime(time, service.duration);
+    const endTime = addMinutesToTime(time, serviceDuration);
     const scheduleConfig = db.getScheduleConfig();
     const buffer = scheduleConfig.buffer_between_slots || 15;
     const newStartMins = timeToMinutes(time);
+    const newEndMins = newStartMins + serviceDuration;
 
     // Check if recurrence requested
     const isRecurring = recurrence && recurrence.enabled && parseInt(recurrence.count, 10) > 1;
@@ -298,27 +307,27 @@ router.post('/', async (req, res) => {
       : [date];
 
     const seriesId = isRecurring ? `ser_${Date.now()}_${Math.random().toString(36).substr(2, 4)}` : null;
-    const createdAppointments = [];
-    const skippedDates = [];
-
     const safeAddress = (client_address && client_address.trim()) ? client_address.trim() : 'Dirección no especificada';
+
+    // Fetch existing appointments ONCE before the loop for fast in-memory conflict check
+    const allExisting = await db.getAppointmentsAsync();
+    const appointmentsToCreate = [];
+    const skippedDates = [];
 
     for (let i = 0; i < datesToBook.length; i++) {
       const bookDate = datesToBook[i];
 
-      // Check conflict for each date
-      const allOnBookDate = await db.getAppointmentsAsync({ date: bookDate });
-      const existing = allOnBookDate.filter(
-        (a) => a.status === 'confirmed' || a.status === 'pending'
+      // Check conflict in memory
+      const existingOnDate = allExisting.filter(
+        (a) => a.date === bookDate && (a.status === 'confirmed' || a.status === 'pending')
       );
 
       let conflict = false;
-      for (const app of existing) {
+      for (const app of existingOnDate) {
         if (app.status === 'cancelled') continue;
         const appStart = timeToMinutes(app.time);
         const appDuration = app.service_duration || 60;
         const appEnd = appStart + appDuration;
-        const newEndMins = newStartMins + service.duration;
 
         if (newStartMins < (appEnd + buffer) && newEndMins > appStart) {
           conflict = true;
@@ -343,16 +352,16 @@ router.post('/', async (req, res) => {
         ? `${recurrenceType === 'weekly' ? 'Semanal' : recurrenceType === 'biweekly' ? 'Quincenal' : recurrenceType === 'monthly' ? 'Mensual' : 'Personalizado'} (${i + 1}/${datesToBook.length})`
         : null;
 
-      const app = await db.createAppointment({
+      appointmentsToCreate.push({
         series_id: seriesId,
         recurrence_type: recurrenceType,
         recurrence_index: i + 1,
         recurrence_total: datesToBook.length,
         recurrence_rule: recurrenceLabel,
         service_id: service.id,
-        service_name: service.name,
-        service_duration: service.duration,
-        service_price: service.price,
+        service_name: serviceName,
+        service_duration: serviceDuration,
+        service_price: servicePrice,
         client_name,
         client_address: safeAddress,
         client_phone,
@@ -360,25 +369,30 @@ router.post('/', async (req, res) => {
         date: bookDate,
         time,
         end_time: endTime,
-        status: 'confirmed',
+        status: req.body.status || 'confirmed',
         source: source || 'web'
       });
-
-      createdAppointments.push(app);
     }
 
+    if (appointmentsToCreate.length === 0) {
+      return res.status(400).json({ error: 'No se pudo agendar ninguna fecha debido a conflictos de horarios.' });
+    }
+
+    // Batch insert all appointments in a single database operation
+    const createdAppointments = await db.createAppointmentsBatch(appointmentsToCreate);
     const primaryAppointment = createdAppointments[0];
 
-    // Dispatch WhatsApp confirmation
-    let whatsappResult = null;
-    try {
-      whatsappResult = await sendWhatsAppMessage({
+    // Dispatch WhatsApp confirmation safely in background if phone has digits
+    const cleanPhoneDigits = (client_phone || '').replace(/\D/g, '');
+    if (cleanPhoneDigits.length >= 8) {
+      sendWhatsAppMessage({
         type: 'confirmation',
         appointment: primaryAppointment
+      }).then(() => {
+        db.updateAppointment(primaryAppointment.id, { confirmation_sent: 1 });
+      }).catch((waErr) => {
+        console.warn('Error dispatching WhatsApp confirmation:', waErr.message);
       });
-      db.updateAppointment(primaryAppointment.id, { confirmation_sent: 1 });
-    } catch (waErr) {
-      console.warn('Error dispatching WhatsApp confirmation:', waErr.message);
     }
 
     res.status(201).json({
@@ -390,8 +404,7 @@ router.post('/', async (req, res) => {
       appointments: createdAppointments,
       series_id: seriesId,
       total_booked: createdAppointments.length,
-      skipped_dates: skippedDates,
-      whatsapp: whatsappResult
+      skipped_dates: skippedDates
     });
   } catch (err) {
     console.error('Error creating appointment:', err);

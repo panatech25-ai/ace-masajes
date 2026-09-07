@@ -18,6 +18,9 @@ export function formatFriendlyDate(dateStr) {
 export function sanitizePhoneNumber(phone) {
   if (!phone) return '';
   let cleaned = phone.replace(/[^\d+]/g, '');
+  if (!cleaned || cleaned.replace(/\D/g, '').length < 6) {
+    return '';
+  }
   
   // If starts with 0 (e.g. 011 -> 11), remove leading 0
   if (cleaned.startsWith('0')) {
@@ -78,7 +81,10 @@ export async function sendWhatsAppMessage({ type, appointment, customMessage = n
   const phone = sanitizePhoneNumber(appointment.client_phone);
 
   if (!phone) {
-    throw new Error('El teléfono del cliente es inválido o no existe.');
+    return {
+      success: false,
+      reason: 'El teléfono del cliente es inválido o no cuenta con dígitos suficientes para WhatsApp.'
+    };
   }
 
   // Determine template

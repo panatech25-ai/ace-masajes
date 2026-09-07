@@ -125,18 +125,24 @@ export default function AppointmentModal({
     setError(null);
 
     const isEdit = Boolean(appointment && appointment.id);
+    const selectedSrv = services.find((s) => s.id === formData.service_id) || services[0];
+    const payload = {
+      ...formData,
+      service_id: selectedSrv?.id || formData.service_id,
+      service_name: selectedSrv?.name,
+      service_duration: parseInt(selectedSrv?.duration, 10) || 60,
+      service_price: parseFloat(selectedSrv?.price) || 0,
+      source: 'admin',
+      recurrence: recurrence.enabled ? recurrence : null
+    };
 
     try {
       if (isEdit) {
         // Update existing
-        await api.updateAppointment(appointment.id, formData);
+        await api.updateAppointment(appointment.id, payload);
       } else {
         // Create new manual appointment (with recurrence if enabled)
-        await api.createAppointment({
-          ...formData,
-          source: 'admin',
-          recurrence: recurrence.enabled ? recurrence : null
-        });
+        await api.createAppointment(payload);
       }
       onSaved();
       onClose();
