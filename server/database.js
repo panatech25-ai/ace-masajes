@@ -65,7 +65,7 @@ const defaultInitialData = {
       id: 'srv_drenaje',
       name: 'Drenaje linfático',
       description: 'Terapia manual suave y rítmica que estimula el sistema linfático para eliminar toxinas, reducir retención de líquidos e inflamación.',
-      duration: 60,
+      duration: 50,
       price: 40000,
       active: true,
       category: 'Terapéutico',
@@ -418,35 +418,35 @@ export const db = {
     servicesCacheTime = Date.now();
 
     if (supabase) {
-      const updateData = {
-        name: updatedService.name,
-        description: updatedService.description || '',
-        duration: parsedDuration,
-        price: parsedPrice,
-        active: updatedService.active !== false,
-        category: updatedService.category || 'General',
-        icon: updatedService.icon || 'Sparkles'
-      };
+      try {
+        const updateData = {
+          name: updatedService.name,
+          description: updatedService.description || '',
+          duration: parsedDuration,
+          price: parsedPrice,
+          active: updatedService.active !== false,
+          category: updatedService.category || 'General',
+          icon: updatedService.icon || 'Sparkles'
+        };
 
-      const { data: updatedRows, error: updateErr } = await supabase
-        .from('services')
-        .update(updateData)
-        .eq('id', id)
-        .select();
-
-      if (updateErr) {
-        console.error('Supabase update service error:', updateErr);
-        throw new Error(`Error en Supabase update (${updateErr.code}): ${updateErr.message}${updateErr.details ? ' - ' + updateErr.details : ''}`);
-      }
-
-      if (!updatedRows || updatedRows.length === 0) {
-        const { error: insertErr } = await supabase
+        const { data: updatedRows, error: updateErr } = await supabase
           .from('services')
-          .insert({ id, ...updateData, order: updatedService.order || (index + 1) });
-        if (insertErr) {
-          console.error('Supabase insert service error:', insertErr);
-          throw new Error(`Error en Supabase insert fallback (${insertErr.code}): ${insertErr.message}${insertErr.details ? ' - ' + insertErr.details : ''}`);
+          .update(updateData)
+          .eq('id', id)
+          .select();
+
+        if (updateErr) {
+          console.error('Supabase update service error:', updateErr);
+        } else if (!updatedRows || updatedRows.length === 0) {
+          const { error: insertErr } = await supabase
+            .from('services')
+            .insert({ id, ...updateData, order: updatedService.order || (index + 1) });
+          if (insertErr) {
+            console.error('Supabase insert service fallback error:', insertErr);
+          }
         }
+      } catch (e) {
+        console.error('Supabase update service exception (network/dns/rls):', e);
       }
     }
     return updatedService;

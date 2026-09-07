@@ -26,7 +26,7 @@ const DEFAULT_SERVICES = [
     id: 'srv_drenaje',
     name: 'Drenaje linfático',
     description: 'Terapia manual suave y rítmica que estimula el sistema linfático para eliminar toxinas, reducir retención de líquidos e inflamación.',
-    duration: 60,
+    duration: 50,
     price: 40000,
     active: true,
     category: 'Terapéutico',
