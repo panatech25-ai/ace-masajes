@@ -49,7 +49,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: 'Error al actualizar el servicio.' });
+    console.error('Error al actualizar servicio:', err);
+    res.status(500).json({ error: err.message || 'Error al actualizar el servicio.' });
   }
 });
 

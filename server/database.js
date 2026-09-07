@@ -436,7 +436,7 @@ export const db = {
 
       if (updateErr) {
         console.error('Supabase update service error:', updateErr);
-        throw new Error(`Error en base de datos al actualizar servicio: ${updateErr.message}`);
+        throw new Error(`Error en Supabase update (${updateErr.code}): ${updateErr.message}${updateErr.details ? ' - ' + updateErr.details : ''}`);
       }
 
       if (!updatedRows || updatedRows.length === 0) {
@@ -445,7 +445,7 @@ export const db = {
           .insert({ id, ...updateData, order: updatedService.order || (index + 1) });
         if (insertErr) {
           console.error('Supabase insert service error:', insertErr);
-          throw new Error(`Error en base de datos al insertar servicio: ${insertErr.message}`);
+          throw new Error(`Error en Supabase insert fallback (${insertErr.code}): ${insertErr.message}${insertErr.details ? ' - ' + insertErr.details : ''}`);
         }
       }
     }
