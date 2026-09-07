@@ -145,7 +145,7 @@ ON CONFLICT (username) DO NOTHING;
 -- Catálogo Oficial de los 6 Masajes a $40.000
 INSERT INTO services (id, name, description, duration, price, active, category, icon, "order")
 VALUES
-  ('srv_relajantes', 'Relajantes', 'Movimientos suaves y armonizadores con aceites esenciales para calmar el sistema nervioso, reducir el estrés y relajar todo el cuerpo.', 60, 40000, true, 'Relajación', 'Sparkles', 1),
+  ('srv_relajantes', 'Relajantes', 'Movimientos suaves y armonizadores con aceites esenciales para calmar el sistema nervioso, reducir el estrés y relajar todo el cuerpo.', 50, 40000, true, 'Relajación', 'Sparkles', 1),
   ('srv_drenaje', 'Drenaje linfático', 'Técnica suave y rítmica que estimula el sistema linfático, favorece la eliminación de toxinas y reduce la retención de líquidos.', 60, 40000, true, 'Terapéutico', 'Droplets', 2),
   ('srv_reflexologia', 'Reflexología', 'Presión en puntos reflejos específicos de los pies y manos que conectan con órganos y sistemas para restablecer el equilibrio natural.', 60, 40000, true, 'Holístico', 'Smile', 3),
   ('srv_reductores', 'Reductores', 'Maniobras enérgicas y modeladoras enfocadas en movilizar el tejido adiposo y tonificar zonas localizadas.', 60, 40000, true, 'Estético', 'Flame', 4),
@@ -154,7 +154,11 @@ VALUES
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
+  duration = EXCLUDED.duration,
   price = EXCLUDED.price;
+
+-- Desactivar RLS en services para permitir edición desde el panel
+ALTER TABLE services DISABLE ROW LEVEL SECURITY;
 
 -- Horarios Semanales (Lunes a Sábado 09:00 a 20:00)
 INSERT INTO schedule_config (id, slot_interval, buffer_between_slots, min_advance_hours, max_advance_days, days)

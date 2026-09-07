@@ -24,11 +24,12 @@ import {
 } from 'lucide-react';
 
 const INITIAL_SERVICES = [
-  { id: 'srv_relajantes', name: 'Relajantes', duration: 60, price: 40000, category: 'Relajación', icon: 'Sparkles', active: true },
+  { id: 'srv_relajantes', name: 'Relajantes', duration: 50, price: 40000, category: 'Relajación', icon: 'Sparkles', active: true },
   { id: 'srv_drenaje', name: 'Drenaje linfático', duration: 60, price: 40000, category: 'Terapéutico', icon: 'Droplets', active: true },
   { id: 'srv_reflexologia', name: 'Reflexología', duration: 60, price: 40000, category: 'Holístico', icon: 'HeartPulse', active: true },
   { id: 'srv_reductores', name: 'Reductores', duration: 60, price: 40000, category: 'Modelador', icon: 'Flame', active: true },
-  { id: 'srv_ventosas', name: 'Con ventosas', duration: 60, price: 40000, category: 'Terapéutico', icon: 'Sparkles', active: true }
+  { id: 'srv_ventosas', name: 'Con ventosas', duration: 60, price: 40000, category: 'Descontracturante', icon: 'Sparkles', active: true },
+  { id: 'srv_maderoterapia', name: 'Maderoterapia', duration: 60, price: 40000, category: 'Holístico', icon: 'Smile', active: true }
 ];
 
 export default function AdminLayout({ user, onLogout, onNavigateToBooking }) {

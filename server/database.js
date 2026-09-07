@@ -54,7 +54,7 @@ const defaultInitialData = {
       id: 'srv_relajantes',
       name: 'Relajantes',
       description: 'Movimientos suaves y armonizadores con aceites esenciales para calmar el sistema nervioso, reducir el estrés y relajar todo el cuerpo.',
-      duration: 60,
+      duration: 50,
       price: 40000,
       active: true,
       category: 'Relajación',
@@ -164,12 +164,21 @@ const defaultInitialData = {
 // In-memory cache synced with disk and Supabase
 let dbData = null;
 
+const BUNDLED_DB_FILE = path.join(__dirname, 'data', 'masajes_db.json');
+
 function loadDatabase() {
   if (dbData) return dbData;
   dbData = JSON.parse(JSON.stringify(defaultInitialData));
   try {
+    let sourceFile = null;
     if (fs.existsSync(DB_FILE)) {
-      const content = fs.readFileSync(DB_FILE, 'utf-8');
+      sourceFile = DB_FILE;
+    } else if (fs.existsSync(BUNDLED_DB_FILE)) {
+      sourceFile = BUNDLED_DB_FILE;
+    }
+
+    if (sourceFile) {
+      const content = fs.readFileSync(sourceFile, 'utf-8');
       const parsed = JSON.parse(content);
       dbData = {
         ...defaultInitialData,
@@ -182,6 +191,9 @@ function loadDatabase() {
         settings: parsed.settings || defaultInitialData.settings,
         notification_logs: parsed.notification_logs || []
       };
+      if (sourceFile !== DB_FILE) {
+        saveDatabase();
+      }
     } else {
       saveDatabase();
     }
@@ -206,7 +218,7 @@ function saveDatabase() {
 let appointmentsCacheTime = 0;
 const APPOINTMENTS_CACHE_TTL_MS = 15000; // 15s cache
 let servicesCacheTime = 0;
-const SERVICES_CACHE_TTL_MS = 60000; // 60s cache
+const SERVICES_CACHE_TTL_MS = 5000; // 5s cache
 
 // Database helper functions - ALWAYS synchronous for internal safety, with Supabase async background sync
 export const db = {
@@ -406,24 +418,35 @@ export const db = {
     servicesCacheTime = Date.now();
 
     if (supabase) {
-      try {
-        const dbUpsert = {
-          id: updatedService.id,
-          name: updatedService.name,
-          description: updatedService.description || '',
-          duration: updatedService.duration,
-          price: updatedService.price,
-          active: updatedService.active !== false,
-          category: updatedService.category || 'General',
-          icon: updatedService.icon || 'Sparkles',
-          order: updatedService.order || (index + 1)
-        };
-        const { error } = await supabase.from('services').upsert(dbUpsert);
-        if (error) {
-          console.error('Supabase upsert service error:', error);
+      const updateData = {
+        name: updatedService.name,
+        description: updatedService.description || '',
+        duration: parsedDuration,
+        price: parsedPrice,
+        active: updatedService.active !== false,
+        category: updatedService.category || 'General',
+        icon: updatedService.icon || 'Sparkles'
+      };
+
+      const { data: updatedRows, error: updateErr } = await supabase
+        .from('services')
+        .update(updateData)
+        .eq('id', id)
+        .select();
+
+      if (updateErr) {
+        console.error('Supabase update service error:', updateErr);
+        throw new Error(`Error en base de datos al actualizar servicio: ${updateErr.message}`);
+      }
+
+      if (!updatedRows || updatedRows.length === 0) {
+        const { error: insertErr } = await supabase
+          .from('services')
+          .insert({ id, ...updateData, order: updatedService.order || (index + 1) });
+        if (insertErr) {
+          console.error('Supabase insert service error:', insertErr);
+          throw new Error(`Error en base de datos al insertar servicio: ${insertErr.message}`);
         }
-      } catch (err) {
-        console.error('Supabase updateService error:', err);
       }
     }
     return updatedService;
