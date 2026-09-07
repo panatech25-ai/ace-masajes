@@ -53,13 +53,14 @@ export default function ServicesManager({ services, onRefresh }) {
         duration: parseInt(formData.duration, 10) || 60,
         price: parseFloat(formData.price) || 0
       };
+      let saved = null;
       if (editingService) {
-        await api.updateService(editingService.id, payload);
+        saved = await api.updateService(editingService.id, payload);
       } else {
-        await api.createService(payload);
+        saved = await api.createService(payload);
       }
       setModalOpen(false);
-      onRefresh();
+      onRefresh(saved || { ...payload, id: editingService?.id });
     } catch (err) {
       alert('Error: ' + err.message);
     } finally {
@@ -79,8 +80,8 @@ export default function ServicesManager({ services, onRefresh }) {
 
   const handleToggleActive = async (srv) => {
     try {
-      await api.updateService(srv.id, { active: !srv.active });
-      onRefresh();
+      const updated = await api.updateService(srv.id, { active: !srv.active });
+      onRefresh(updated);
     } catch (err) {
       alert('Error: ' + err.message);
     }

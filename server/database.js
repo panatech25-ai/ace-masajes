@@ -248,21 +248,53 @@ export const db = {
     }
     return list;
   },
-  getServicesAsync: async (activeOnly = false) => {
+  getServicesAsync: async (activeOnly = false, forceRefresh = false) => {
     const data = loadDatabase();
     const now = Date.now();
-    if (supabase && (now - servicesCacheTime > SERVICES_CACHE_TTL_MS || !data.services || data.services.length === 0)) {
+
+    // In-memory cache hit: respond immediately
+    if (!forceRefresh && (now - servicesCacheTime < SERVICES_CACHE_TTL_MS) && Array.isArray(data.services) && data.services.length > 0) {
+      return activeOnly ? data.services.filter((s) => s.active) : data.services;
+    }
+
+    if (supabase) {
       try {
-        const { data: rows, error } = await supabase.from('services').select('*').order('order', { ascending: true });
-        if (!error && Array.isArray(rows) && rows.length > 0) {
-          data.services = rows;
-          servicesCacheTime = now;
+        const { data: rows, error } = await supabase.from('services').select('*');
+        if (!error && Array.isArray(rows)) {
+          if (rows.length > 0) {
+            // Sort safely in JS without hitting reserved SQL word "order" issues
+            rows.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+            data.services = rows;
+          } else {
+            // Seed Supabase with defaults if empty
+            const toInsert = defaultInitialData.services.map((s, idx) => ({
+              id: s.id,
+              name: s.name,
+              description: s.description || '',
+              duration: parseInt(s.duration, 10) || 60,
+              price: parseFloat(s.price) || 40000,
+              active: s.active !== false,
+              category: s.category || 'General',
+              icon: s.icon || 'Sparkles',
+              order: idx + 1
+            }));
+            await supabase.from('services').upsert(toInsert);
+            data.services = defaultInitialData.services;
+          }
+          servicesCacheTime = Date.now();
           saveDatabase();
+        } else {
+          if (error) console.error('Supabase getServices error:', error);
+          servicesCacheTime = Date.now();
         }
       } catch (err) {
-        console.error('Supabase getServices error:', err);
+        console.error('Supabase getServices exception:', err);
+        servicesCacheTime = Date.now();
       }
+    } else {
+      servicesCacheTime = Date.now();
     }
+
     const list = Array.isArray(data.services) && data.services.length > 0
       ? data.services
       : defaultInitialData.services;
@@ -325,7 +357,7 @@ export const db = {
     servicesCacheTime = 0;
     if (supabase) {
       try {
-        await supabase.from('services').insert(newService);
+        await supabase.from('services').upsert(newService);
       } catch (e) {
         console.error('Supabase insert service error:', e);
       }
@@ -353,7 +385,9 @@ export const db = {
   },
   updateServiceAsync: async (id, updates) => {
     const data = loadDatabase();
-    if (!data.services) data.services = defaultInitialData.services;
+    if (!data.services || data.services.length === 0) {
+      data.services = JSON.parse(JSON.stringify(defaultInitialData.services));
+    }
     const index = data.services.findIndex((s) => s.id === id);
     if (index === -1) return null;
 
@@ -369,20 +403,25 @@ export const db = {
 
     data.services[index] = updatedService;
     saveDatabase();
-    servicesCacheTime = 0;
+    servicesCacheTime = Date.now();
 
     if (supabase) {
       try {
-        const dbUpdates = {
+        const dbUpsert = {
+          id: updatedService.id,
           name: updatedService.name,
-          description: updatedService.description,
+          description: updatedService.description || '',
           duration: updatedService.duration,
           price: updatedService.price,
-          active: updatedService.active,
-          category: updatedService.category,
-          icon: updatedService.icon
+          active: updatedService.active !== false,
+          category: updatedService.category || 'General',
+          icon: updatedService.icon || 'Sparkles',
+          order: updatedService.order || (index + 1)
         };
-        await supabase.from('services').update(dbUpdates).eq('id', id);
+        const { error } = await supabase.from('services').upsert(dbUpsert);
+        if (error) {
+          console.error('Supabase upsert service error:', error);
+        }
       } catch (err) {
         console.error('Supabase updateService error:', err);
       }

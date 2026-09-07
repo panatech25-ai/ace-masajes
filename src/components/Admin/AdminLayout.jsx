@@ -23,10 +23,18 @@ import {
   RefreshCw
 } from 'lucide-react';
 
+const INITIAL_SERVICES = [
+  { id: 'srv_relajantes', name: 'Relajantes', duration: 60, price: 40000, category: 'Relajación', icon: 'Sparkles', active: true },
+  { id: 'srv_drenaje', name: 'Drenaje linfático', duration: 60, price: 40000, category: 'Terapéutico', icon: 'Droplets', active: true },
+  { id: 'srv_reflexologia', name: 'Reflexología', duration: 60, price: 40000, category: 'Holístico', icon: 'HeartPulse', active: true },
+  { id: 'srv_reductores', name: 'Reductores', duration: 60, price: 40000, category: 'Modelador', icon: 'Flame', active: true },
+  { id: 'srv_ventosas', name: 'Con ventosas', duration: 60, price: 40000, category: 'Terapéutico', icon: 'Sparkles', active: true }
+];
+
 export default function AdminLayout({ user, onLogout, onNavigateToBooking }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [appointments, setAppointments] = useState([]);
-  const [services, setServices] = useState([]);
+  const [services, setServices] = useState(INITIAL_SERVICES);
   const [clients, setClients] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -48,7 +56,7 @@ export default function AdminLayout({ user, onLogout, onNavigateToBooking }) {
       if (appsRes.status === 'fulfilled' && Array.isArray(appsRes.value)) {
         setAppointments(appsRes.value);
       }
-      if (srvsRes.status === 'fulfilled' && Array.isArray(srvsRes.value)) {
+      if (srvsRes.status === 'fulfilled' && Array.isArray(srvsRes.value) && srvsRes.value.length > 0) {
         setServices(srvsRes.value);
       }
       if (stRes.status === 'fulfilled' && stRes.value) {
@@ -66,6 +74,21 @@ export default function AdminLayout({ user, onLogout, onNavigateToBooking }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleServicesUpdated = (savedService) => {
+    if (savedService && savedService.id) {
+      setServices((prev) => {
+        const idx = prev.findIndex((s) => s.id === savedService.id);
+        if (idx !== -1) {
+          const next = [...prev];
+          next[idx] = { ...next[idx], ...savedService };
+          return next;
+        }
+        return [...prev, savedService];
+      });
+    }
+    loadAllData();
   };
 
   useEffect(() => {
@@ -221,7 +244,7 @@ export default function AdminLayout({ user, onLogout, onNavigateToBooking }) {
         {activeTab === 'services' && (
           <ServicesManager
             services={services}
-            onRefresh={loadAllData}
+            onRefresh={handleServicesUpdated}
           />
         )}
 
