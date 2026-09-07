@@ -5,10 +5,10 @@ import { authMiddleware } from '../middleware/auth.js';
 const router = express.Router();
 
 // GET /api/services (Public: active only, Admin with ?all=true: all)
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const showAll = req.query.all === 'true';
-    const services = db.getServices(!showAll);
+    const services = await db.getServicesAsync(!showAll);
     res.json(services);
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener los servicios.' });
@@ -16,14 +16,14 @@ router.get('/', (req, res) => {
 });
 
 // POST /api/services (Admin: create service)
-router.post('/', authMiddleware, (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   try {
     const { name, description, duration, price, active, category, icon } = req.body;
     if (!name || !duration || price === undefined) {
       return res.status(400).json({ error: 'Nombre, duración y precio son campos requeridos.' });
     }
 
-    const created = db.createService({
+    const created = await db.createServiceAsync({
       name,
       description,
       duration,
@@ -40,10 +40,10 @@ router.post('/', authMiddleware, (req, res) => {
 });
 
 // PUT /api/services/:id (Admin: update service)
-router.put('/:id', authMiddleware, (req, res) => {
+router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const updated = db.updateService(id, req.body);
+    const updated = await db.updateServiceAsync(id, req.body);
     if (!updated) {
       return res.status(404).json({ error: 'Servicio no encontrado.' });
     }
@@ -54,10 +54,10 @@ router.put('/:id', authMiddleware, (req, res) => {
 });
 
 // DELETE /api/services/:id (Admin: delete service)
-router.delete('/:id', authMiddleware, (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const success = db.deleteService(id);
+    const success = await db.deleteServiceAsync(id);
     if (!success) {
       return res.status(404).json({ error: 'Servicio no encontrado.' });
     }

@@ -94,9 +94,9 @@ router.post('/run-scheduler-now', authMiddleware, async (req, res) => {
 });
 
 // GET /api/settings/clients/all (Admin: directory of clients)
-router.get('/clients/all', authMiddleware, (req, res) => {
+router.get('/clients/all', authMiddleware, async (req, res) => {
   try {
-    const clients = db.getClients();
+    const clients = await db.getClientsAsync();
     res.json(clients);
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener clientes.' });

@@ -35,7 +35,7 @@ export default function ServicesManager({ services, onRefresh }) {
     setFormData({
       name: srv.name,
       description: srv.description || '',
-      duration: srv.duration,
+      duration: parseInt(srv.duration, 10) || 60,
       price: srv.price,
       category: srv.category || 'General',
       icon: srv.icon || 'Sparkles',
@@ -48,10 +48,15 @@ export default function ServicesManager({ services, onRefresh }) {
     e.preventDefault();
     setLoading(true);
     try {
+      const payload = {
+        ...formData,
+        duration: parseInt(formData.duration, 10) || 60,
+        price: parseFloat(formData.price) || 0
+      };
       if (editingService) {
-        await api.updateService(editingService.id, formData);
+        await api.updateService(editingService.id, payload);
       } else {
-        await api.createService(formData);
+        await api.createService(payload);
       }
       setModalOpen(false);
       onRefresh();

@@ -129,14 +129,23 @@ export default function ClientsView({ clients, onRefresh }) {
 
                     {/* Total Bookings */}
                     <td className="py-4 px-4 sm:px-6 text-center whitespace-nowrap">
-                      <span className="px-2.5 py-1 rounded-full bg-spa-100 text-spa-900 font-bold text-xs">
-                        {client.total_appointments} sesiones
+                      <span className="px-2.5 py-1 rounded-full bg-spa-100 text-spa-900 font-bold text-xs inline-block">
+                        {client.completed_appointments > 0
+                          ? `${client.completed_appointments} de ${client.total_appointments} realizadas`
+                          : `${client.total_appointments} reservadas`}
                       </span>
                     </td>
 
                     {/* Total Spent */}
-                    <td className="py-4 px-4 sm:px-6 whitespace-nowrap font-bold text-stone-900">
-                      ${Number(client.total_spent || 0).toLocaleString('es-AR')}
+                    <td className="py-4 px-4 sm:px-6 whitespace-nowrap">
+                      <div className="font-bold text-emerald-800 text-sm">
+                        ${Number(client.total_spent || 0).toLocaleString('es-AR')}
+                      </div>
+                      {client.pending_revenue > 0 && (
+                        <div className="text-[11px] text-stone-400 font-medium">
+                          (${Number(client.pending_revenue).toLocaleString('es-AR')} por cobrar)
+                        </div>
+                      )}
                     </td>
 
                     {/* Last Visit */}

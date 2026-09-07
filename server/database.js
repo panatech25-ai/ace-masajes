@@ -202,6 +202,12 @@ function saveDatabase() {
   }
 }
 
+// Cache timestamps for serverless high-speed responses
+let appointmentsCacheTime = 0;
+const APPOINTMENTS_CACHE_TTL_MS = 15000; // 15s cache
+let servicesCacheTime = 0;
+const SERVICES_CACHE_TTL_MS = 60000; // 60s cache
+
 // Database helper functions - ALWAYS synchronous for internal safety, with Supabase async background sync
 export const db = {
   get: () => loadDatabase(),
@@ -242,6 +248,30 @@ export const db = {
     }
     return list;
   },
+  getServicesAsync: async (activeOnly = false) => {
+    const data = loadDatabase();
+    const now = Date.now();
+    if (supabase && (now - servicesCacheTime > SERVICES_CACHE_TTL_MS || !data.services || data.services.length === 0)) {
+      try {
+        const { data: rows, error } = await supabase.from('services').select('*').order('order', { ascending: true });
+        if (!error && Array.isArray(rows) && rows.length > 0) {
+          data.services = rows;
+          servicesCacheTime = now;
+          saveDatabase();
+        }
+      } catch (err) {
+        console.error('Supabase getServices error:', err);
+      }
+    }
+    const list = Array.isArray(data.services) && data.services.length > 0
+      ? data.services
+      : defaultInitialData.services;
+
+    if (activeOnly) {
+      return list.filter((s) => s.active);
+    }
+    return list;
+  },
   getServiceById: (id) => {
     const data = loadDatabase();
     const list = Array.isArray(data.services) && data.services.length > 0
@@ -270,8 +300,35 @@ export const db = {
     };
     data.services.push(newService);
     saveDatabase();
+    servicesCacheTime = 0;
     if (supabase) {
       supabase.from('services').insert(newService).catch(console.error);
+    }
+    return newService;
+  },
+  createServiceAsync: async (service) => {
+    const data = loadDatabase();
+    if (!data.services) data.services = [];
+    const newService = {
+      id: `srv_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      name: service.name,
+      description: service.description || '',
+      duration: parseInt(service.duration, 10) || 60,
+      price: parseFloat(service.price) || 0,
+      active: service.active !== false,
+      category: service.category || 'General',
+      icon: service.icon || 'Sparkles',
+      order: data.services.length + 1
+    };
+    data.services.push(newService);
+    saveDatabase();
+    servicesCacheTime = 0;
+    if (supabase) {
+      try {
+        await supabase.from('services').insert(newService);
+      } catch (e) {
+        console.error('Supabase insert service error:', e);
+      }
     }
     return newService;
   },
@@ -286,6 +343,7 @@ export const db = {
         price: updates.price !== undefined ? parseFloat(updates.price) : data.services[index].price
       };
       saveDatabase();
+      servicesCacheTime = 0;
       if (supabase) {
         supabase.from('services').update(updates).eq('id', id).catch(console.error);
       }
@@ -293,18 +351,72 @@ export const db = {
     }
     return null;
   },
+  updateServiceAsync: async (id, updates) => {
+    const data = loadDatabase();
+    if (!data.services) data.services = defaultInitialData.services;
+    const index = data.services.findIndex((s) => s.id === id);
+    if (index === -1) return null;
+
+    const parsedDuration = updates.duration !== undefined ? parseInt(updates.duration, 10) : data.services[index].duration;
+    const parsedPrice = updates.price !== undefined ? parseFloat(updates.price) : data.services[index].price;
+
+    const updatedService = {
+      ...data.services[index],
+      ...updates,
+      duration: parsedDuration,
+      price: parsedPrice
+    };
+
+    data.services[index] = updatedService;
+    saveDatabase();
+    servicesCacheTime = 0;
+
+    if (supabase) {
+      try {
+        const dbUpdates = {
+          name: updatedService.name,
+          description: updatedService.description,
+          duration: updatedService.duration,
+          price: updatedService.price,
+          active: updatedService.active,
+          category: updatedService.category,
+          icon: updatedService.icon
+        };
+        await supabase.from('services').update(dbUpdates).eq('id', id);
+      } catch (err) {
+        console.error('Supabase updateService error:', err);
+      }
+    }
+    return updatedService;
+  },
   deleteService: (id) => {
     const data = loadDatabase();
     const initialLen = data.services.length;
     data.services = data.services.filter((s) => s.id !== id);
     if (data.services.length !== initialLen) {
       saveDatabase();
+      servicesCacheTime = 0;
       if (supabase) {
         supabase.from('services').delete().eq('id', id).catch(console.error);
       }
       return true;
     }
     return false;
+  },
+  deleteServiceAsync: async (id) => {
+    const data = loadDatabase();
+    if (!data.services) return false;
+    data.services = data.services.filter((s) => s.id !== id);
+    saveDatabase();
+    servicesCacheTime = 0;
+    if (supabase) {
+      try {
+        await supabase.from('services').delete().eq('id', id);
+      } catch (e) {
+        console.error('Supabase delete service error:', e);
+      }
+    }
+    return true;
   },
 
   // Appointments
@@ -342,29 +454,45 @@ export const db = {
   },
 
   getAppointmentsAsync: async (filter = {}) => {
-    let list = [];
-    if (supabase) {
+    const data = loadDatabase();
+    const now = Date.now();
+    const isCacheFresh = (now - appointmentsCacheTime < APPOINTMENTS_CACHE_TTL_MS) && Array.isArray(data.appointments);
+
+    if (supabase && (!isCacheFresh || filter.forceRefresh)) {
       try {
-        let query = supabase.from('appointments').select('*');
-        if (filter.date) query = query.eq('date', filter.date);
-        if (filter.startDate && filter.endDate) {
-          query = query.gte('date', filter.startDate).lte('date', filter.endDate);
-        }
-        if (filter.status) query = query.eq('status', filter.status);
-        const { data: dbRows, error } = await query;
-        if (!error && Array.isArray(dbRows) && dbRows.length > 0) {
-          list = dbRows;
-          const data = loadDatabase();
+        const { data: dbRows, error } = await supabase.from('appointments').select('*');
+        if (!error && Array.isArray(dbRows)) {
           data.appointments = dbRows;
+          appointmentsCacheTime = now;
           saveDatabase();
         }
       } catch (err) {
         console.error('Supabase getAppointments error:', err);
       }
     }
-    if (list.length === 0) {
-      list = db.getAppointments(filter);
+
+    let list = Array.isArray(data.appointments) ? [...data.appointments] : [];
+
+    if (filter.date) {
+      list = list.filter((a) => a.date === filter.date);
     }
+    if (filter.startDate && filter.endDate) {
+      list = list.filter((a) => a.date >= filter.startDate && a.date <= filter.endDate);
+    }
+    if (filter.status) {
+      list = list.filter((a) => a.status === filter.status);
+    }
+    if (filter.search) {
+      const q = filter.search.toLowerCase();
+      list = list.filter(
+        (a) =>
+          a.client_name?.toLowerCase().includes(q) ||
+          a.client_phone?.toLowerCase().includes(q) ||
+          (a.client_address && a.client_address.toLowerCase().includes(q)) ||
+          a.service_name?.toLowerCase().includes(q)
+      );
+    }
+
     return list.sort((a, b) => {
       if (a.date === b.date) {
         return (a.time || '').localeCompare(b.time || '');
@@ -396,7 +524,7 @@ export const db = {
     return null;
   },
 
-  createAppointment: (appointment) => {
+  createAppointment: async (appointment) => {
     const data = loadDatabase();
     if (!data.appointments) data.appointments = [];
 
@@ -428,11 +556,14 @@ export const db = {
 
     data.appointments.push(newAppointment);
     saveDatabase();
+    appointmentsCacheTime = 0;
 
     if (supabase) {
-      supabase.from('appointments').insert(newAppointment).then(({ error }) => {
-        if (error) console.error('Supabase error inserting appointment:', error);
-      }).catch(console.error);
+      try {
+        await supabase.from('appointments').insert(newAppointment);
+      } catch (error) {
+        console.error('Supabase error inserting appointment:', error);
+      }
     }
     return newAppointment;
   },
@@ -474,10 +605,23 @@ export const db = {
       data.appointments.push(updatedApp);
     }
     saveDatabase();
+    appointmentsCacheTime = 0;
 
     if (supabase) {
       try {
-        const { data: row, error } = await supabase.from('appointments').update(updates).eq('id', id).select().single();
+        const allowedColumns = [
+          'service_id', 'service_name', 'service_duration', 'service_price',
+          'client_name', 'client_address', 'client_phone', 'client_notes',
+          'date', 'time', 'end_time', 'status', 'cancellation_reason',
+          'reminder_sent', 'confirmation_sent', 'source', 'recurrence_rule',
+          'series_id', 'recurrence_type', 'recurrence_index', 'recurrence_total',
+          'updated_at'
+        ];
+        const sanitized = {};
+        for (const key of allowedColumns) {
+          if (updates[key] !== undefined) sanitized[key] = updates[key];
+        }
+        const { data: row, error } = await supabase.from('appointments').update(sanitized).eq('id', id).select().single();
         if (!error && row) updatedApp = row;
       } catch (e) {
         console.error('Supabase update appointment error:', e);
@@ -493,6 +637,7 @@ export const db = {
     data.appointments = data.appointments.filter((a) => a.id !== id);
     if (data.appointments.length !== initialLen) {
       saveDatabase();
+      appointmentsCacheTime = 0;
       if (supabase) {
         supabase.from('appointments').delete().eq('id', id).catch(console.error);
       }
@@ -506,6 +651,7 @@ export const db = {
     if (!data.appointments) data.appointments = [];
     data.appointments = data.appointments.filter((a) => a.id !== id);
     saveDatabase();
+    appointmentsCacheTime = 0;
 
     if (supabase) {
       try {
@@ -524,6 +670,7 @@ export const db = {
     data.appointments = data.appointments.filter((a) => a.series_id !== seriesId);
     if (data.appointments.length !== initialLen) {
       saveDatabase();
+      appointmentsCacheTime = 0;
       if (supabase) {
         supabase.from('appointments').delete().eq('series_id', seriesId).catch(console.error);
       }
@@ -537,6 +684,7 @@ export const db = {
     if (!data.appointments) data.appointments = [];
     data.appointments = data.appointments.filter((a) => a.series_id !== seriesId);
     saveDatabase();
+    appointmentsCacheTime = 0;
 
     if (supabase) {
       try {
@@ -661,20 +809,33 @@ export const db = {
     for (const app of data.appointments || []) {
       const phone = (app.client_phone || '').trim();
       if (!phone) continue;
+      const isCompleted = app.status === 'completed';
+      const isCancelled = app.status === 'cancelled';
+      const price = Number(app.service_price || 0);
+
       if (!map.has(phone)) {
         map.set(phone, {
           phone,
           name: app.client_name || 'Cliente',
           address: app.client_address || '',
           total_appointments: 1,
-          total_spent: Number(app.service_price || 0),
+          completed_appointments: isCompleted ? 1 : 0,
+          pending_appointments: !isCompleted && !isCancelled ? 1 : 0,
+          total_spent: isCompleted ? price : 0,
+          pending_revenue: !isCompleted && !isCancelled ? price : 0,
           last_appointment: app.date,
           history: [app]
         });
       } else {
         const client = map.get(phone);
         client.total_appointments += 1;
-        client.total_spent = (client.total_spent || 0) + Number(app.service_price || 0);
+        if (isCompleted) {
+          client.completed_appointments = (client.completed_appointments || 0) + 1;
+          client.total_spent = (client.total_spent || 0) + price;
+        } else if (!isCancelled) {
+          client.pending_appointments = (client.pending_appointments || 0) + 1;
+          client.pending_revenue = (client.pending_revenue || 0) + price;
+        }
         if (app.date > client.last_appointment) {
           client.last_appointment = app.date;
         }
@@ -684,11 +845,17 @@ export const db = {
     return Array.from(map.values());
   },
 
+  getClientsAsync: async () => {
+    await db.getAppointmentsAsync();
+    return db.getClients();
+  },
+
   clearAllAppointmentsAndLogs: async () => {
     const data = loadDatabase();
     data.appointments = [];
     data.notification_logs = [];
     saveDatabase();
+    appointmentsCacheTime = 0;
     if (supabase) {
       try {
         await supabase.from('appointments').delete().neq('id', 'placeholder_not_matching');
@@ -709,6 +876,7 @@ export const db = {
       return aClean !== cleanPhone;
     });
     saveDatabase();
+    appointmentsCacheTime = 0;
     if (supabase) {
       try {
         await supabase.from('appointments').delete().ilike('client_phone', `%${cleanPhone}%`);

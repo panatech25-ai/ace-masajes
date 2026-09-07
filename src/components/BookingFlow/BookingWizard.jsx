@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../api';
 import ServiceSelector from './ServiceSelector';
 import CalendarPicker from './CalendarPicker';
@@ -104,6 +104,8 @@ export default function BookingWizard() {
   const [bookingResult, setBookingResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
 
+  const availabilityCache = useRef({});
+
   // Load active services on mount
   useEffect(() => {
     async function loadServices() {
@@ -126,25 +128,39 @@ export default function BookingWizard() {
 
   // Fetch availability whenever selectedDate or selectedService changes
   useEffect(() => {
+    let isMounted = true;
     async function fetchAvailability() {
       if (!selectedDate) return;
-      setLoadingAvailability(true);
+      const cacheKey = `${selectedDate}_${selectedService?.id || 'default'}`;
+      if (availabilityCache.current[cacheKey]) {
+        setAvailability(availabilityCache.current[cacheKey]);
+        setLoadingAvailability(false);
+      } else {
+        setLoadingAvailability(true);
+      }
+
       try {
         const data = await api.getAvailability(selectedDate, selectedService?.id);
-        setAvailability(data);
-        // Reset selected time if not available in current list
-        if (selectedTime) {
-          const exists = data.slots?.some((s) => s.time === selectedTime);
-          if (!exists) setSelectedTime(null);
+        if (isMounted) {
+          availabilityCache.current[cacheKey] = data;
+          setAvailability(data);
+          // Reset selected time if not available in current list
+          if (selectedTime) {
+            const exists = data.slots?.some((s) => s.time === selectedTime);
+            if (!exists) setSelectedTime(null);
+          }
         }
       } catch (err) {
-        console.error('Error fetching availability:', err);
+        if (isMounted) console.error('Error fetching availability:', err);
       } finally {
-        setLoadingAvailability(false);
+        if (isMounted) setLoadingAvailability(false);
       }
     }
 
     fetchAvailability();
+    return () => {
+      isMounted = false;
+    };
   }, [selectedDate, selectedService]);
 
   // Auto scroll to top on step changes for comfortable mobile navigation
@@ -178,7 +194,7 @@ export default function BookingWizard() {
       };
 
       const result = await api.createAppointment(payload);
-
+      availabilityCache.current = {}; // invalidate client cache
       setBookingResult(result);
     } catch (err) {
       setErrorMessage(err.message || 'Ocurrió un error al registrar el turno. Por favor intente nuevamente.');
