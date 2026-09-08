@@ -136,11 +136,12 @@ INSERT INTO users (id, username, password_hash, name, role)
 VALUES (
   'usr_admin',
   'jpanadisi',
-  '$2b$10$LWvj6frCHwF7GYSnJKWAfeVUamnZMgNnGHcvG0xMOu/tzJkP8j0ya',
+  '$2b$10$FXHgObJcRBaYL3gT1zU1We9ectytVn4tjESibfORVBUoREwyvkeyC',
   'J. Panadisi',
   'admin'
 )
-ON CONFLICT (username) DO NOTHING;
+ON CONFLICT (username) DO UPDATE SET
+  password_hash = EXCLUDED.password_hash;
 
 -- Catálogo Oficial de los 6 Masajes a $40.000
 INSERT INTO services (id, name, description, duration, price, active, category, icon, "order")

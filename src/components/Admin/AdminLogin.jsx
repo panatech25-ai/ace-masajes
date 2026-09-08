@@ -16,7 +16,7 @@ export default function AdminLogin({ isOpen, onClose, onLoginSuccess }) {
     setError(null);
 
     try {
-      const data = await api.login(username, password);
+      const data = await api.login(username.trim(), password.trim());
       localStorage.setItem('ace_admin_token', data.token);
       onLoginSuccess(data.user);
       onClose();
