@@ -37,6 +37,17 @@ if (supabase) {
   console.log('💾 Utilizando almacenamiento local /tmp JSON');
 }
 
+export function safeSync(operation) {
+  if (!supabase || !operation) return;
+  try {
+    Promise.resolve(operation).catch((err) => {
+      console.error('Supabase background sync error:', err?.message || err);
+    });
+  } catch (err) {
+    console.error('Supabase background sync exception:', err?.message || err);
+  }
+}
+
 // Default initial state
 const defaultInitialData = {
   users: [
@@ -250,7 +261,7 @@ export const db = {
       user.password_hash = newHash;
       saveDatabase();
       if (supabase) {
-        supabase.from('users').update({ password_hash: newHash }).eq('id', id).catch(console.error);
+        safeSync(supabase.from('users').update({ password_hash: newHash }).eq('id', id));
       }
       return true;
     }
@@ -355,7 +366,7 @@ export const db = {
     saveDatabase();
     servicesCacheTime = 0;
     if (supabase) {
-      supabase.from('services').insert(newService).catch(console.error);
+      safeSync(supabase.from('services').insert(newService));
     }
     return newService;
   },
@@ -398,7 +409,7 @@ export const db = {
       saveDatabase();
       servicesCacheTime = 0;
       if (supabase) {
-        supabase.from('services').update(updates).eq('id', id).catch(console.error);
+        safeSync(supabase.from('services').update(updates).eq('id', id));
       }
       return data.services[index];
     }
@@ -468,7 +479,7 @@ export const db = {
       saveDatabase();
       servicesCacheTime = 0;
       if (supabase) {
-        supabase.from('services').delete().eq('id', id).catch(console.error);
+        safeSync(supabase.from('services').delete().eq('id', id));
       }
       return true;
     }
@@ -706,7 +717,7 @@ export const db = {
       };
       saveDatabase();
       if (supabase) {
-        supabase.from('appointments').update(updates).eq('id', id).catch(console.error);
+        safeSync(supabase.from('appointments').update(updates).eq('id', id));
       }
       return data.appointments[index];
     }
@@ -765,7 +776,7 @@ export const db = {
       saveDatabase();
       appointmentsCacheTime = 0;
       if (supabase) {
-        supabase.from('appointments').delete().eq('id', id).catch(console.error);
+        safeSync(supabase.from('appointments').delete().eq('id', id));
       }
       return true;
     }
@@ -798,7 +809,7 @@ export const db = {
       saveDatabase();
       appointmentsCacheTime = 0;
       if (supabase) {
-        supabase.from('appointments').delete().eq('series_id', seriesId).catch(console.error);
+        safeSync(supabase.from('appointments').delete().eq('series_id', seriesId));
       }
       return true;
     }
@@ -835,7 +846,7 @@ export const db = {
     };
     saveDatabase();
     if (supabase) {
-      supabase.from('schedule_config').upsert({ id: 1, ...data.schedule_config }).catch(console.error);
+      safeSync(supabase.from('schedule_config').upsert({ id: 1, ...data.schedule_config }));
     }
     return data.schedule_config;
   },
@@ -860,7 +871,7 @@ export const db = {
     data.blocked_dates.push(newBlocked);
     saveDatabase();
     if (supabase) {
-      supabase.from('blocked_dates').insert(newBlocked).catch(console.error);
+      safeSync(supabase.from('blocked_dates').insert(newBlocked));
     }
     return newBlocked;
   },
@@ -872,7 +883,7 @@ export const db = {
     if (data.blocked_dates.length !== initialLen) {
       saveDatabase();
       if (supabase) {
-        supabase.from('blocked_dates').delete().eq('id', id).catch(console.error);
+        safeSync(supabase.from('blocked_dates').delete().eq('id', id));
       }
       return true;
     }
@@ -892,7 +903,7 @@ export const db = {
     };
     saveDatabase();
     if (supabase) {
-      supabase.from('settings').upsert({ id: 1, ...data.settings }).catch(console.error);
+      safeSync(supabase.from('settings').upsert({ id: 1, ...data.settings }));
     }
     return data.settings;
   },
@@ -919,7 +930,7 @@ export const db = {
     }
     saveDatabase();
     if (supabase) {
-      supabase.from('notification_logs').insert(newLog).catch(console.error);
+      safeSync(supabase.from('notification_logs').insert(newLog));
     }
     return newLog;
   },
