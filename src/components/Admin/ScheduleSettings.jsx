@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api';
-import { Clock, Calendar, Shield, Save, Plus, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Clock, Calendar, Shield, Save, Plus, Trash2, CheckCircle2, AlertCircle, CheckSquare, Sun, Moon } from 'lucide-react';
+
+const ALL_30MIN_SLOTS = [
+  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
+  '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
+  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
+  '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
+  '20:00', '20:30', '21:00', '21:30'
+];
 
 export default function ScheduleSettings({ onRefresh }) {
   const [config, setConfig] = useState(null);
@@ -34,6 +42,80 @@ export default function ScheduleSettings({ onRefresh }) {
     const newDays = [...config.days];
     newDays[index] = { ...newDays[index], [field]: value };
     setConfig({ ...config, days: newDays });
+  };
+
+  const handleToggleSlot = (dayIndex, timeStr) => {
+    const newDays = [...config.days];
+    const currentSlots = Array.isArray(newDays[dayIndex].slots) ? newDays[dayIndex].slots : [];
+    let updatedSlots;
+    if (currentSlots.includes(timeStr)) {
+      updatedSlots = currentSlots.filter((t) => t !== timeStr);
+    } else {
+      updatedSlots = [...currentSlots, timeStr].sort();
+    }
+    newDays[dayIndex] = { ...newDays[dayIndex], slots: updatedSlots };
+    setConfig({ ...config, days: newDays });
+  };
+
+  const handleSetDaySlots = (dayIndex, newSlots) => {
+    const newDays = [...config.days];
+    newDays[dayIndex] = { ...newDays[dayIndex], slots: [...newSlots].sort() };
+    setConfig({ ...config, days: newDays });
+  };
+
+  const handleSelectAllSlots = (dayIndex) => {
+    handleSetDaySlots(dayIndex, ALL_30MIN_SLOTS);
+  };
+
+  const handleClearDaySlots = (dayIndex) => {
+    handleSetDaySlots(dayIndex, []);
+  };
+
+  const handleSelectMorningSlots = (dayIndex) => {
+    const morningSlots = ALL_30MIN_SLOTS.filter((t) => {
+      const [h] = t.split(':').map(Number);
+      return h < 13;
+    });
+    const current = config.days[dayIndex].slots || [];
+    const merged = Array.from(new Set([...current, ...morningSlots]));
+    handleSetDaySlots(dayIndex, merged);
+  };
+
+  const handleSelectAfternoonSlots = (dayIndex) => {
+    const afternoonSlots = ALL_30MIN_SLOTS.filter((t) => {
+      const [h] = t.split(':').map(Number);
+      return h >= 13;
+    });
+    const current = config.days[dayIndex].slots || [];
+    const merged = Array.from(new Set([...current, ...afternoonSlots]));
+    handleSetDaySlots(dayIndex, merged);
+  };
+
+  const handleSelectAccordingToHours = (dayIndex) => {
+    const day = config.days[dayIndex];
+    const openParts = (day.open_time || '09:00').split(':').map(Number);
+    const closeParts = (day.close_time || '20:00').split(':').map(Number);
+    const openM = openParts[0] * 60 + openParts[1];
+    const closeM = closeParts[0] * 60 + closeParts[1];
+
+    let bStart = -1, bEnd = -1;
+    if (day.has_break && day.break_start && day.break_end) {
+      const bs = day.break_start.split(':').map(Number);
+      const be = day.break_end.split(':').map(Number);
+      bStart = bs[0] * 60 + bs[1];
+      bEnd = be[0] * 60 + be[1];
+    }
+
+    const calculated = ALL_30MIN_SLOTS.filter((t) => {
+      const [h, m] = t.split(':').map(Number);
+      const slotM = h * 60 + m;
+      if (slotM < openM || slotM > closeM - 30) return false;
+      if (bStart !== -1 && bEnd !== -1 && slotM < bEnd && (slotM + 30) > bStart) {
+        return false;
+      }
+      return true;
+    });
+    handleSetDaySlots(dayIndex, calculated);
   };
 
   const handleGeneralChange = (field, value) => {
@@ -170,87 +252,181 @@ export default function ScheduleSettings({ onRefresh }) {
             Días y Horarios Semanales
           </h4>
 
-          <div className="space-y-3">
-            {config.days.map((day, idx) => (
-              <div
-                key={day.day_of_week}
-                className={`p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs ${
-                  day.is_working
-                    ? 'bg-stone-50/60 border-stone-200'
-                    : 'bg-stone-100/40 border-stone-200/60 opacity-60'
-                }`}
-              >
-                <div className="flex items-center gap-3 min-w-[130px]">
-                  <input
-                    type="checkbox"
-                    checked={day.is_working}
-                    onChange={(e) => handleDayChange(idx, 'is_working', e.target.checked)}
-                    className="w-4 h-4 rounded text-spa-700"
-                    id={`day-${day.day_of_week}`}
-                  />
-                  <label htmlFor={`day-${day.day_of_week}`} className="font-bold text-stone-900 cursor-pointer text-sm">
-                    {day.day_name}
-                  </label>
-                </div>
-
-                {day.is_working ? (
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-stone-500 font-medium">De</span>
+          <div className="space-y-4">
+            {config.days.map((day, idx) => {
+              const activeSlotsCount = day.slots?.length || 0;
+              return (
+                <div
+                  key={day.day_of_week}
+                  className={`p-4 sm:p-5 rounded-2xl border transition-all space-y-4 ${
+                    day.is_working
+                      ? 'bg-white border-stone-200/90 shadow-2xs'
+                      : 'bg-stone-50 border-stone-200/60 opacity-60'
+                  }`}
+                >
+                  {/* Day Header & Operating Hours */}
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-3 min-w-[170px]">
                       <input
-                        type="time"
-                        value={day.open_time}
-                        onChange={(e) => handleDayChange(idx, 'open_time', e.target.value)}
-                        className="px-2 py-1.5 rounded-lg border border-stone-200 bg-white font-medium"
+                        type="checkbox"
+                        checked={day.is_working}
+                        onChange={(e) => handleDayChange(idx, 'is_working', e.target.checked)}
+                        className="w-4 h-4 rounded text-spa-700 cursor-pointer"
+                        id={`day-${day.day_of_week}`}
                       />
-                      <span className="text-stone-500 font-medium">a</span>
-                      <input
-                        type="time"
-                        value={day.close_time}
-                        onChange={(e) => handleDayChange(idx, 'close_time', e.target.value)}
-                        className="px-2 py-1.5 rounded-lg border border-stone-200 bg-white font-medium"
-                      />
-                    </div>
-
-                    <div className="h-4 w-px bg-stone-300 hidden sm:block" />
-
-                    <div className="flex items-center gap-2">
-                      <label className="flex items-center gap-1 cursor-pointer text-stone-600">
-                        <input
-                          type="checkbox"
-                          checked={day.has_break}
-                          onChange={(e) => handleDayChange(idx, 'has_break', e.target.checked)}
-                          className="w-3.5 h-3.5 rounded text-spa-700"
-                        />
-                        <span>Pausa almuerzo</span>
+                      <label htmlFor={`day-${day.day_of_week}`} className="font-bold text-stone-900 cursor-pointer text-sm">
+                        {day.day_name}
                       </label>
-
-                      {day.has_break && (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="time"
-                            value={day.break_start}
-                            onChange={(e) => handleDayChange(idx, 'break_start', e.target.value)}
-                            className="px-2 py-1 rounded-lg border border-stone-200 bg-white text-[11px]"
-                          />
-                          <span className="text-stone-400">-</span>
-                          <input
-                            type="time"
-                            value={day.break_end}
-                            onChange={(e) => handleDayChange(idx, 'break_end', e.target.value)}
-                            className="px-2 py-1 rounded-lg border border-stone-200 bg-white text-[11px]"
-                          />
-                        </div>
+                      {day.is_working && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          activeSlotsCount > 0 ? 'bg-spa-100 text-spa-800' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {activeSlotsCount} {activeSlotsCount === 1 ? 'turno' : 'turnos'}
+                        </span>
                       )}
                     </div>
+
+                    {day.is_working ? (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-stone-500 font-medium">De</span>
+                          <input
+                            type="time"
+                            value={day.open_time}
+                            onChange={(e) => handleDayChange(idx, 'open_time', e.target.value)}
+                            className="px-2 py-1.5 rounded-lg border border-stone-200 bg-white font-medium"
+                          />
+                          <span className="text-stone-500 font-medium">a</span>
+                          <input
+                            type="time"
+                            value={day.close_time}
+                            onChange={(e) => handleDayChange(idx, 'close_time', e.target.value)}
+                            className="px-2 py-1.5 rounded-lg border border-stone-200 bg-white font-medium"
+                          />
+                        </div>
+
+                        <div className="h-4 w-px bg-stone-300 hidden sm:block" />
+
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-1 cursor-pointer text-stone-600">
+                            <input
+                              type="checkbox"
+                              checked={day.has_break}
+                              onChange={(e) => handleDayChange(idx, 'has_break', e.target.checked)}
+                              className="w-3.5 h-3.5 rounded text-spa-700"
+                            />
+                            <span>Pausa</span>
+                          </label>
+
+                          {day.has_break && (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="time"
+                                value={day.break_start}
+                                onChange={(e) => handleDayChange(idx, 'break_start', e.target.value)}
+                                className="px-2 py-1 rounded-lg border border-stone-200 bg-white text-[11px]"
+                              />
+                              <span className="text-stone-400">-</span>
+                              <input
+                                type="time"
+                                value={day.break_end}
+                                onChange={(e) => handleDayChange(idx, 'break_end', e.target.value)}
+                                className="px-2 py-1 rounded-lg border border-stone-200 bg-white text-[11px]"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-xs font-semibold text-stone-400">
+                        Cerrado todo el día
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <span className="text-xs font-semibold text-stone-400">
-                    Cerrado todo el día
-                  </span>
-                )}
-              </div>
-            ))}
+
+                  {/* 30-minute Slots Selection Grid */}
+                  {day.is_working && (
+                    <div className="pt-3 border-t border-stone-100 space-y-2.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
+                          <CheckSquare className="w-3.5 h-3.5 text-spa-700" />
+                          Seleccionar turnos de 30 min para ofrecer a clientes:
+                        </span>
+                        <div className="flex flex-wrap items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectAllSlots(idx)}
+                            className="px-2 py-1 text-[11px] font-medium bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-md transition-colors"
+                            title="Seleccionar todos los 28 turnos posibles"
+                          >
+                            Todos
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleClearDaySlots(idx)}
+                            className="px-2 py-1 text-[11px] font-medium bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-md transition-colors"
+                            title="Deseleccionar todos"
+                          >
+                            Ninguno
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectMorningSlots(idx)}
+                            className="px-2 py-1 text-[11px] font-medium bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-md transition-colors flex items-center gap-1"
+                            title="Agregar turnos de 08:00 a 12:30"
+                          >
+                            <Sun className="w-3 h-3 text-amber-500" />
+                            Mañana
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectAfternoonSlots(idx)}
+                            className="px-2 py-1 text-[11px] font-medium bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-md transition-colors flex items-center gap-1"
+                            title="Agregar turnos de 13:00 a 21:30"
+                          >
+                            <Moon className="w-3 h-3 text-indigo-500" />
+                            Tarde
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectAccordingToHours(idx)}
+                            className="px-2 py-1 text-[11px] font-medium bg-spa-100 hover:bg-spa-200 text-spa-900 rounded-md transition-colors flex items-center gap-1"
+                            title="Calcular según el horario De/A y pausa almuerzo"
+                          >
+                            <Clock className="w-3 h-3 text-spa-700" />
+                            Según Horario
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-4 sm:grid-cols-7 md:grid-cols-14 gap-1.5">
+                        {ALL_30MIN_SLOTS.map((slot) => {
+                          const isChecked = (day.slots || []).includes(slot);
+                          return (
+                            <label
+                              key={slot}
+                              className={`px-1.5 py-1.5 rounded-lg border text-[11px] cursor-pointer select-none transition-all flex items-center justify-center gap-1 ${
+                                isChecked
+                                  ? 'bg-spa-50 border-spa-400 text-spa-900 font-bold shadow-2xs'
+                                  : 'bg-stone-50/50 border-stone-200 text-stone-400 hover:bg-white hover:text-stone-600'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggleSlot(idx, slot)}
+                                className="w-3 h-3 rounded text-spa-700 focus:ring-spa-600 border-stone-300 cursor-pointer"
+                              />
+                              <span>{slot}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="pt-3 flex justify-end">

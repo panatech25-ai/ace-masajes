@@ -141,7 +141,20 @@ router.get('/availability', async (req, res) => {
 
     const slots = [];
 
-    for (let startMins = openMins; startMins + duration <= closeMins; startMins += slotInterval) {
+    // Determine candidate start times in minutes:
+    // If admin configured specific 30-min checkboxes for this day (dayConfig.slots), use them!
+    const candidateStarts = [];
+    if (Array.isArray(dayConfig.slots)) {
+      for (const timeStr of dayConfig.slots) {
+        candidateStarts.push(timeToMinutes(timeStr));
+      }
+    } else {
+      for (let startMins = openMins; startMins + duration <= closeMins; startMins += slotInterval) {
+        candidateStarts.push(startMins);
+      }
+    }
+
+    for (const startMins of candidateStarts) {
       const endMins = startMins + duration;
 
       // If today, check advance notice and past slots

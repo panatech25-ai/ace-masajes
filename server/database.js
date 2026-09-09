@@ -134,13 +134,13 @@ const defaultInitialData = {
     min_advance_hours: 1,
     max_advance_days: 45,
     days: [
-      { day_of_week: 0, day_name: 'Domingo', is_working: false, open_time: '10:00', close_time: '18:00', has_break: false, break_start: '13:00', break_end: '14:00' },
-      { day_of_week: 1, day_name: 'Lunes', is_working: true, open_time: '09:00', close_time: '20:00', has_break: true, break_start: '13:00', break_end: '14:00' },
-      { day_of_week: 2, day_name: 'Martes', is_working: true, open_time: '09:00', close_time: '20:00', has_break: true, break_start: '13:00', break_end: '14:00' },
-      { day_of_week: 3, day_name: 'Miércoles', is_working: true, open_time: '09:00', close_time: '20:00', has_break: true, break_start: '13:00', break_end: '14:00' },
-      { day_of_week: 4, day_name: 'Jueves', is_working: true, open_time: '09:00', close_time: '20:00', has_break: true, break_start: '13:00', break_end: '14:00' },
-      { day_of_week: 5, day_name: 'Viernes', is_working: true, open_time: '09:00', close_time: '20:00', has_break: true, break_start: '13:00', break_end: '14:00' },
-      { day_of_week: 6, day_name: 'Sábado', is_working: true, open_time: '09:30', close_time: '19:00', has_break: true, break_start: '13:30', break_end: '14:30' }
+      { day_of_week: 0, day_name: 'Domingo', is_working: false, open_time: '10:00', close_time: '18:00', has_break: false, break_start: '13:00', break_end: '14:00', slots: [] },
+      { day_of_week: 1, day_name: 'Lunes', is_working: true, open_time: '09:00', close_time: '20:00', has_break: true, break_start: '13:00', break_end: '14:00', slots: ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30'] },
+      { day_of_week: 2, day_name: 'Martes', is_working: true, open_time: '09:00', close_time: '20:00', has_break: true, break_start: '13:00', break_end: '14:00', slots: ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30'] },
+      { day_of_week: 3, day_name: 'Miércoles', is_working: true, open_time: '09:00', close_time: '20:00', has_break: true, break_start: '13:00', break_end: '14:00', slots: ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30'] },
+      { day_of_week: 4, day_name: 'Jueves', is_working: true, open_time: '09:00', close_time: '20:00', has_break: true, break_start: '13:00', break_end: '14:00', slots: ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30'] },
+      { day_of_week: 5, day_name: 'Viernes', is_working: true, open_time: '09:00', close_time: '20:00', has_break: true, break_start: '13:00', break_end: '14:00', slots: ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30'] },
+      { day_of_week: 6, day_name: 'Sábado', is_working: true, open_time: '09:30', close_time: '19:00', has_break: true, break_start: '13:30', break_end: '14:30', slots: ['09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30'] }
     ]
   },
   blocked_dates: [],
@@ -836,7 +836,43 @@ export const db = {
   // Schedule Config
   getScheduleConfig: () => {
     const data = loadDatabase();
-    return data.schedule_config || defaultInitialData.schedule_config;
+    const config = data.schedule_config || defaultInitialData.schedule_config;
+    if (config && Array.isArray(config.days)) {
+      config.days = config.days.map((d) => {
+        if (!Array.isArray(d.slots)) {
+          if (!d.is_working) {
+            d.slots = [];
+          } else {
+            // Generate default slots every 30m within working hours
+            const openParts = (d.open_time || '09:00').split(':').map(Number);
+            const closeParts = (d.close_time || '20:00').split(':').map(Number);
+            const openMins = openParts[0] * 60 + openParts[1];
+            const closeMins = closeParts[0] * 60 + closeParts[1];
+            
+            let bStart = -1, bEnd = -1;
+            if (d.has_break && d.break_start && d.break_end) {
+              const bs = d.break_start.split(':').map(Number);
+              const be = d.break_end.split(':').map(Number);
+              bStart = bs[0] * 60 + bs[1];
+              bEnd = be[0] * 60 + be[1];
+            }
+
+            const genSlots = [];
+            for (let m = openMins; m <= closeMins - 30; m += 30) {
+              if (bStart !== -1 && bEnd !== -1 && m < bEnd && (m + 30) > bStart) {
+                continue;
+              }
+              const hh = Math.floor(m / 60).toString().padStart(2, '0');
+              const mm = (m % 60).toString().padStart(2, '0');
+              genSlots.push(`${hh}:${mm}`);
+            }
+            d.slots = genSlots;
+          }
+        }
+        return d;
+      });
+    }
+    return config;
   },
   updateScheduleConfig: (newConfig) => {
     const data = loadDatabase();
