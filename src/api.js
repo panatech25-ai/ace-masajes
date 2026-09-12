@@ -34,7 +34,7 @@ async function request(endpoint, options = {}) {
 export const api = {
   // Public
   getServices: (all = false) => request(`/services?all=${all}`),
-  getAvailability: (date, serviceId) => request(`/appointments/availability?date=${date}&service_id=${serviceId || ''}`),
+  getAvailability: (date, serviceId) => request(`/appointments/availability?date=${date}&service_id=${serviceId || ''}&_t=${Date.now()}`),
   createAppointment: (bookingData) => request('/appointments', {
     method: 'POST',
     body: JSON.stringify(bookingData)
@@ -95,7 +95,7 @@ export const api = {
   }),
 
   // Admin Schedule
-  getSchedule: () => request('/schedule'),
+  getSchedule: () => request(`/schedule?_t=${Date.now()}`),
   updateScheduleConfig: (config) => request('/schedule/config', {
     method: 'PUT',
     body: JSON.stringify(config)

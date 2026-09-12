@@ -230,6 +230,10 @@ let appointmentsCacheTime = 0;
 const APPOINTMENTS_CACHE_TTL_MS = 15000; // 15s cache
 let servicesCacheTime = 0;
 const SERVICES_CACHE_TTL_MS = 5000; // 5s cache
+let scheduleConfigCacheTime = 0;
+const SCHEDULE_CONFIG_CACHE_TTL_MS = 5000; // 5s cache
+let blockedDatesCacheTime = 0;
+const BLOCKED_DATES_CACHE_TTL_MS = 5000; // 5s cache
 
 // Database helper functions - ALWAYS synchronous for internal safety, with Supabase async background sync
 export const db = {
@@ -874,6 +878,54 @@ export const db = {
     }
     return config;
   },
+
+  getScheduleConfigAsync: async (forceRefresh = false) => {
+    const data = loadDatabase();
+    const now = Date.now();
+
+    if (!forceRefresh && (now - scheduleConfigCacheTime < SCHEDULE_CONFIG_CACHE_TTL_MS) && data.schedule_config && Array.isArray(data.schedule_config.days)) {
+      return db.getScheduleConfig();
+    }
+
+    if (supabase) {
+      try {
+        const { data: row, error } = await supabase
+          .from('schedule_config')
+          .select('*')
+          .eq('id', 1)
+          .maybeSingle();
+
+        if (!error && row && row.days) {
+          data.schedule_config = {
+            slot_interval: row.slot_interval !== undefined ? row.slot_interval : (data.schedule_config?.slot_interval || 15),
+            buffer_between_slots: row.buffer_between_slots !== undefined ? row.buffer_between_slots : (data.schedule_config?.buffer_between_slots || 15),
+            min_advance_hours: row.min_advance_hours !== undefined ? row.min_advance_hours : (data.schedule_config?.min_advance_hours || 1),
+            max_advance_days: row.max_advance_days !== undefined ? row.max_advance_days : (data.schedule_config?.max_advance_days || 45),
+            days: Array.isArray(row.days) ? row.days : data.schedule_config.days
+          };
+          scheduleConfigCacheTime = Date.now();
+          saveDatabase();
+        } else if (!error && !row) {
+          const current = data.schedule_config || defaultInitialData.schedule_config;
+          await supabase.from('schedule_config').upsert({
+            id: 1,
+            slot_interval: current.slot_interval || 15,
+            buffer_between_slots: current.buffer_between_slots || 15,
+            min_advance_hours: current.min_advance_hours || 1,
+            max_advance_days: current.max_advance_days || 45,
+            days: current.days,
+            updated_at: new Date().toISOString()
+          });
+          scheduleConfigCacheTime = Date.now();
+        }
+      } catch (err) {
+        console.error('Supabase getScheduleConfigAsync error:', err?.message || err);
+      }
+    }
+
+    return db.getScheduleConfig();
+  },
+
   updateScheduleConfig: (newConfig) => {
     const data = loadDatabase();
     data.schedule_config = {
@@ -881,8 +933,48 @@ export const db = {
       ...newConfig
     };
     saveDatabase();
+    scheduleConfigCacheTime = 0;
     if (supabase) {
-      safeSync(supabase.from('schedule_config').upsert({ id: 1, ...data.schedule_config }));
+      safeSync(supabase.from('schedule_config').upsert({
+        id: 1,
+        slot_interval: parseInt(data.schedule_config.slot_interval, 10) || 15,
+        buffer_between_slots: parseInt(data.schedule_config.buffer_between_slots, 10) || 0,
+        min_advance_hours: parseInt(data.schedule_config.min_advance_hours, 10) || 1,
+        max_advance_days: parseInt(data.schedule_config.max_advance_days, 10) || 45,
+        days: data.schedule_config.days,
+        updated_at: new Date().toISOString()
+      }));
+    }
+    return data.schedule_config;
+  },
+
+  updateScheduleConfigAsync: async (newConfig) => {
+    const data = loadDatabase();
+    data.schedule_config = {
+      ...(data.schedule_config || defaultInitialData.schedule_config),
+      ...newConfig
+    };
+    saveDatabase();
+    scheduleConfigCacheTime = Date.now();
+
+    if (supabase) {
+      try {
+        const payload = {
+          id: 1,
+          slot_interval: parseInt(data.schedule_config.slot_interval, 10) || 15,
+          buffer_between_slots: parseInt(data.schedule_config.buffer_between_slots, 10) || 0,
+          min_advance_hours: parseInt(data.schedule_config.min_advance_hours, 10) || 1,
+          max_advance_days: parseInt(data.schedule_config.max_advance_days, 10) || 45,
+          days: data.schedule_config.days,
+          updated_at: new Date().toISOString()
+        };
+        const { error } = await supabase.from('schedule_config').upsert(payload);
+        if (error) {
+          console.error('Supabase updateScheduleConfigAsync error:', error);
+        }
+      } catch (err) {
+        console.error('Supabase updateScheduleConfigAsync exception:', err);
+      }
     }
     return data.schedule_config;
   },
@@ -892,6 +984,31 @@ export const db = {
     const data = loadDatabase();
     return data.blocked_dates || [];
   },
+
+  getBlockedDatesAsync: async (forceRefresh = false) => {
+    const data = loadDatabase();
+    const now = Date.now();
+
+    if (!forceRefresh && (now - blockedDatesCacheTime < BLOCKED_DATES_CACHE_TTL_MS) && Array.isArray(data.blocked_dates)) {
+      return data.blocked_dates;
+    }
+
+    if (supabase) {
+      try {
+        const { data: rows, error } = await supabase.from('blocked_dates').select('*');
+        if (!error && Array.isArray(rows)) {
+          data.blocked_dates = rows;
+          blockedDatesCacheTime = Date.now();
+          saveDatabase();
+        }
+      } catch (e) {
+        console.error('Supabase getBlockedDates error:', e);
+      }
+    }
+
+    return data.blocked_dates || [];
+  },
+
   addBlockedDate: (blocked) => {
     const data = loadDatabase();
     const newBlocked = {
@@ -906,11 +1023,38 @@ export const db = {
     if (!data.blocked_dates) data.blocked_dates = [];
     data.blocked_dates.push(newBlocked);
     saveDatabase();
+    blockedDatesCacheTime = 0;
     if (supabase) {
       safeSync(supabase.from('blocked_dates').insert(newBlocked));
     }
     return newBlocked;
   },
+
+  addBlockedDateAsync: async (blocked) => {
+    const data = loadDatabase();
+    const newBlocked = {
+      id: `blk_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      date: blocked.date,
+      all_day: blocked.all_day !== false,
+      start_time: blocked.start_time || null,
+      end_time: blocked.end_time || null,
+      reason: blocked.reason || 'No disponible',
+      created_at: new Date().toISOString()
+    };
+    if (!data.blocked_dates) data.blocked_dates = [];
+    data.blocked_dates.push(newBlocked);
+    saveDatabase();
+    blockedDatesCacheTime = 0;
+    if (supabase) {
+      try {
+        await supabase.from('blocked_dates').insert(newBlocked);
+      } catch (err) {
+        console.error('Supabase addBlockedDateAsync error:', err);
+      }
+    }
+    return newBlocked;
+  },
+
   deleteBlockedDate: (id) => {
     const data = loadDatabase();
     if (!data.blocked_dates) return false;
@@ -918,8 +1062,29 @@ export const db = {
     data.blocked_dates = data.blocked_dates.filter((b) => b.id !== id);
     if (data.blocked_dates.length !== initialLen) {
       saveDatabase();
+      blockedDatesCacheTime = 0;
       if (supabase) {
         safeSync(supabase.from('blocked_dates').delete().eq('id', id));
+      }
+      return true;
+    }
+    return false;
+  },
+
+  deleteBlockedDateAsync: async (id) => {
+    const data = loadDatabase();
+    if (!data.blocked_dates) return false;
+    const initialLen = data.blocked_dates.length;
+    data.blocked_dates = data.blocked_dates.filter((b) => b.id !== id);
+    if (data.blocked_dates.length !== initialLen) {
+      saveDatabase();
+      blockedDatesCacheTime = 0;
+      if (supabase) {
+        try {
+          await supabase.from('blocked_dates').delete().eq('id', id);
+        } catch (err) {
+          console.error('Supabase deleteBlockedDateAsync error:', err);
+        }
       }
       return true;
     }

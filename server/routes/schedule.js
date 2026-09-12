@@ -5,10 +5,11 @@ import { authMiddleware } from '../middleware/auth.js';
 const router = express.Router();
 
 // GET /api/schedule (Public/Admin: get schedule and blocked dates)
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const config = db.getScheduleConfig();
-    const blocked = db.getBlockedDates();
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    const config = await db.getScheduleConfigAsync();
+    const blocked = await db.getBlockedDatesAsync();
     res.json({ config, blocked });
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener la configuración de horarios.' });
@@ -16,9 +17,9 @@ router.get('/', (req, res) => {
 });
 
 // PUT /api/schedule/config (Admin: update working hours & rules)
-router.put('/config', authMiddleware, (req, res) => {
+router.put('/config', authMiddleware, async (req, res) => {
   try {
-    const updated = db.updateScheduleConfig(req.body);
+    const updated = await db.updateScheduleConfigAsync(req.body);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: 'Error al actualizar horarios.' });
@@ -26,14 +27,14 @@ router.put('/config', authMiddleware, (req, res) => {
 });
 
 // POST /api/schedule/blocked (Admin: add blocked date/time)
-router.post('/blocked', authMiddleware, (req, res) => {
+router.post('/blocked', authMiddleware, async (req, res) => {
   try {
     const { date, all_day, start_time, end_time, reason } = req.body;
     if (!date) {
       return res.status(400).json({ error: 'La fecha es requerida.' });
     }
 
-    const blocked = db.addBlockedDate({
+    const blocked = await db.addBlockedDateAsync({
       date,
       all_day,
       start_time,
@@ -48,10 +49,10 @@ router.post('/blocked', authMiddleware, (req, res) => {
 });
 
 // DELETE /api/schedule/blocked/:id (Admin: remove blocked date)
-router.delete('/blocked/:id', authMiddleware, (req, res) => {
+router.delete('/blocked/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    db.deleteBlockedDate(id);
+    await db.deleteBlockedDateAsync(id);
     res.json({ success: true, message: 'Bloqueo eliminado con éxito.' });
   } catch (err) {
     res.status(500).json({ error: 'Error al eliminar fecha bloqueada.' });

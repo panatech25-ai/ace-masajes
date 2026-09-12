@@ -50,15 +50,16 @@ function addMinutesToTime(timeStr, minutesToAdd) {
 // GET /api/appointments/availability?date=YYYY-MM-DD&service_id=xxx
 router.get('/availability', async (req, res) => {
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const { date, service_id } = req.query;
 
     if (!date) {
       return res.status(400).json({ error: 'Parámetro date es requerido (YYYY-MM-DD).' });
     }
 
-    const scheduleConfig = db.getScheduleConfig();
-    const blockedDates = db.getBlockedDates();
-    const services = db.getServices();
+    const scheduleConfig = await db.getScheduleConfigAsync();
+    const blockedDates = await db.getBlockedDatesAsync();
+    const services = await db.getServicesAsync();
 
     // Find service duration
     let duration = 60;
@@ -144,7 +145,8 @@ router.get('/availability', async (req, res) => {
     // Determine candidate start times in minutes:
     // If admin configured specific 30-min checkboxes for this day (dayConfig.slots), use them!
     const candidateStarts = [];
-    if (Array.isArray(dayConfig.slots)) {
+    const hasCustomSlots = Array.isArray(dayConfig.slots);
+    if (hasCustomSlots) {
       for (const timeStr of dayConfig.slots) {
         candidateStarts.push(timeToMinutes(timeStr));
       }
@@ -162,8 +164,9 @@ router.get('/availability', async (req, res) => {
         continue;
       }
 
-      // Check break overlap
-      if (dayConfig.has_break && breakStartMins !== -1 && breakEndMins !== -1) {
+      // Check break overlap ONLY IF custom slots are NOT configured.
+      // When custom slots are configured, the admin's selected checkboxes explicitly define the available slots.
+      if (!hasCustomSlots && dayConfig.has_break && breakStartMins !== -1 && breakEndMins !== -1) {
         if (startMins < breakEndMins && endMins > breakStartMins) {
           continue;
         }
@@ -304,7 +307,7 @@ router.post('/', async (req, res) => {
     }
 
     const endTime = addMinutesToTime(time, serviceDuration);
-    const scheduleConfig = db.getScheduleConfig();
+    const scheduleConfig = await db.getScheduleConfigAsync();
     const buffer = scheduleConfig.buffer_between_slots || 15;
     const newStartMins = timeToMinutes(time);
     const newEndMins = newStartMins + serviceDuration;
